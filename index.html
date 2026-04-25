@@ -9,39 +9,75 @@
   <meta name="apple-mobile-web-app-title" content="Propinas" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="icon-192.png" />
-  <title>Propinas ☕ · Café</title>
+  <title>Propinas ☕</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      background: #0f0e0d; font-family: 'Georgia','Times New Roman',serif;
-      color: #f0ead6; min-height: 100vh;
-      padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
-    }
+    body { background: #0f0e0d; font-family: 'Georgia','Times New Roman',serif; color: #f0ead6; min-height: 100vh; }
+    input, button, select, textarea { font-family: inherit; }
     input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
-    input, button { font-family: inherit; }
 
-    /* ── Header ── */
-    #header {
-      background: linear-gradient(135deg,#1a1208,#2d1f0a);
-      border-bottom: 2px solid #c8922a; padding: 14px 20px 10px; text-align: center;
+    /* ── Loading ── */
+    #view-loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .spinner { width: 40px; height: 40px; border: 3px solid #3a2e10; border-top-color: #c8922a; border-radius: 50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Auth ── */
+    #view-auth, #view-onboard {
+      min-height: 100vh; display: flex; align-items: center;
+      justify-content: center; padding: 24px 20px;
+      background: radial-gradient(ellipse at top, #1a1208 0%, #0f0e0d 70%);
     }
-    #header .sub    { font-size: 11px; letter-spacing: 4px; color: #c8922a; text-transform: uppercase; margin-bottom: 3px; }
-    #header h1      { font-size: 26px; color: #f5d78e; letter-spacing: 1px; font-weight: bold; }
-    #header .byline { font-size: 11px; color: #8a7a5a; margin-top: 2px; }
+    .auth-wrap { width: 100%; max-width: 380px; }
+    .auth-logo { text-align: center; margin-bottom: 28px; }
+    .auth-logo .ico { font-size: 52px; line-height: 1; }
+    .auth-logo h1  { font-size: 22px; color: #f5d78e; margin-top: 8px; }
+    .auth-logo p   { font-size: 11px; color: #5a4a30; margin-top: 3px; }
+    .auth-card { background: #1a1208; border: 1px solid #3a2e10; border-radius: 20px; padding: 26px 22px; }
+    .auth-tabs { display: flex; gap: 0; margin-bottom: 22px; border: 1px solid #3a2e10; border-radius: 10px; overflow: hidden; }
+    .auth-tab  { flex: 1; background: transparent; border: none; color: #5a4a30; padding: 10px; font-size: 13px; cursor: pointer; transition: all .15s; }
+    .auth-tab.active { background: #c8922a; color: #0f0e0d; font-weight: bold; }
+    .field       { margin-bottom: 14px; }
+    .field label { display: block; font-size: 10px; letter-spacing: 2px; color: #8a7a5a; text-transform: uppercase; margin-bottom: 6px; }
+    .field input, .field select {
+      width: 100%; background: #0f0e0d; border: 1px solid #3a2e10; border-radius: 8px;
+      color: #f0ead6; padding: 11px 14px; font-size: 14px; outline: none;
+    }
+    .field input:focus { border-color: #c8922a; }
+    .role-btns { display: flex; gap: 10px; }
+    .role-btn  { flex: 1; padding: 13px 8px; border-radius: 10px; border: 1px solid #3a2e10; background: transparent; color: #8a7a5a; font-size: 12px; cursor: pointer; text-align: center; transition: all .15s; line-height: 1.4; }
+    .role-btn .role-ico { font-size: 22px; display: block; margin-bottom: 4px; }
+    .role-btn.active { background: #c8922a; color: #0f0e0d; border-color: transparent; font-weight: bold; }
+    .auth-btn { width: 100%; background: linear-gradient(135deg,#c8922a,#a06b10); border: none; border-radius: 10px; color: #0f0e0d; font-weight: bold; padding: 13px; font-size: 14px; cursor: pointer; margin-top: 6px; }
+    .auth-err { background: #2a0808; border: 1px solid #5a2020; border-radius: 8px; color: #e08080; font-size: 12px; padding: 10px 12px; margin-bottom: 14px; display: none; }
+    .auth-err.show { display: block; }
 
-    /* ── Stats ── */
-    #stats { display: flex; background: #1a1208; border-bottom: 1px solid #3a2e10; padding: 10px 8px; }
-    .stat  { text-align: center; flex: 1; }
+    /* ── Onboarding ── */
+    .onboard-title { font-size: 18px; color: #f5d78e; font-weight: bold; margin-bottom: 6px; }
+    .onboard-sub   { font-size: 12px; color: #8a7a5a; margin-bottom: 22px; line-height: 1.5; }
+    .invite-big    { font-size: 32px; letter-spacing: 10px; color: #f5d78e; font-weight: bold; text-align: center; padding: 16px; background: #0f0e0d; border: 1px solid #3a2e10; border-radius: 10px; margin-bottom: 14px; }
+    .invite-hint   { font-size: 11px; color: #5a4a30; text-align: center; margin-bottom: 14px; }
+
+    /* ── Shared app header ── */
+    .app-header {
+      background: linear-gradient(135deg,#1a1208,#2d1f0a);
+      border-bottom: 2px solid #c8922a; padding: 12px 20px 10px; text-align: center;
+    }
+    .app-header .sub    { font-size: 10px; letter-spacing: 4px; color: #c8922a; text-transform: uppercase; margin-bottom: 2px; }
+    .app-header h1      { font-size: 24px; color: #f5d78e; letter-spacing: 1px; font-weight: bold; }
+    .app-header .byline { font-size: 11px; color: #8a7a5a; margin-top: 2px; }
+    .app-header .logout-btn { position: absolute; top: 14px; right: 16px; background: transparent; border: 1px solid #3a2e10; border-radius: 7px; color: #5a4a30; font-size: 10px; padding: 5px 8px; cursor: pointer; }
+
+    /* ── Stats bar ── */
+    .stats-bar { display: flex; background: #1a1208; border-bottom: 1px solid #3a2e10; padding: 10px 8px; }
+    .stat { text-align: center; flex: 1; }
     .stat-label { font-size: 10px; color: #8a7a5a; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 2px; }
     .stat-value { font-size: 15px; font-weight: bold; color: #f5d78e; }
     .stat-sub   { font-size: 10px; color: #5a4a30; }
     .stat-divider { width: 1px; background: #3a2e10; }
 
     /* ── Legend ── */
-    #legend {
-      display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
-      padding: 8px 16px; background: #120f08; border-bottom: 1px solid #1e1a0e;
-    }
+    .legend-bar { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; padding: 7px 16px; background: #120f08; border-bottom: 1px solid #1e1a0e; }
     .legend-item { display: flex; align-items: center; gap: 5px; font-size: 10px; color: #8a7a5a; }
     .legend-swatch { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
     .ls-morning   { background: #0c2008; border: 1px solid #2a5a20; }
@@ -49,79 +85,49 @@
     .ls-tip       { background: #0f2a0a; border: 1px solid #3a7a2a; }
 
     /* ── Bottom nav ── */
-    #bottom-nav {
-      position: fixed; bottom: 0; left: 0; right: 0;
-      background: #1a1208; border-top: 1px solid #3a2e10;
-      display: flex; padding-bottom: env(safe-area-inset-bottom,0px); z-index: 95;
-    }
-    .nav-tab {
-      flex: 1; display: flex; flex-direction: column; align-items: center;
-      justify-content: center; padding: 9px 4px; background: transparent; border: none;
-      color: #5a4a30; font-family: inherit; font-size: 10px; letter-spacing: .5px;
-      cursor: pointer; gap: 3px; transition: color .15s;
-    }
+    .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: #1a1208; border-top: 1px solid #3a2e10; display: flex; padding-bottom: env(safe-area-inset-bottom,0px); z-index: 95; }
+    .nav-tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 9px 4px; background: transparent; border: none; color: #5a4a30; font-size: 10px; letter-spacing: .5px; cursor: pointer; gap: 3px; transition: color .15s; }
     .nav-tab.active { color: #c8922a; }
-    .nav-tab-icon { font-size: 19px; line-height: 1; }
+    .nav-tab-icon { font-size: 18px; line-height: 1; }
 
     /* ── FAB ── */
-    #fab {
-      position: fixed;
-      bottom: calc(64px + env(safe-area-inset-bottom,0px) + 14px); right: 20px;
-      background: linear-gradient(135deg,#c8922a,#a06b10); border: none;
-      border-radius: 50%; width: 52px; height: 52px; font-size: 28px;
-      color: #0f0e0d; cursor: pointer; line-height: 1;
-      box-shadow: 0 4px 16px rgba(200,146,42,.45); z-index: 90;
-      transition: opacity .2s, transform .2s;
-    }
-    #fab.hidden { opacity: 0; pointer-events: none; transform: scale(.8); }
+    .fab { position: fixed; bottom: calc(64px + env(safe-area-inset-bottom,0px) + 14px); right: 20px; background: linear-gradient(135deg,#c8922a,#a06b10); border: none; border-radius: 50%; width: 52px; height: 52px; font-size: 28px; color: #0f0e0d; cursor: pointer; line-height: 1; box-shadow: 0 4px 16px rgba(200,146,42,.45); z-index: 90; transition: opacity .2s, transform .2s; }
+    .fab.hidden { opacity: 0; pointer-events: none; transform: scale(.8); }
 
-    /* ── Tabs ── */
+    /* ── Tab content ── */
     .tab-content { display: none; }
     .tab-content.active { display: block; }
+    .tab-inner { padding-bottom: 88px; }
 
-    /* ── Main calendar ── */
-    #cal-nav { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px 6px; }
-    .nav-btn { background: #1a1208; border: 1px solid #3a2e10; border-radius: 8px; color: #f5d78e; font-size: 20px; width: 36px; height: 36px; cursor: pointer; }
-    #cal-nav .month-label { font-size: 16px; font-weight: bold; color: #f5d78e; text-align: center; }
-    #cal-nav .year-label  { font-size: 12px; color: #8a7a5a; text-align: center; }
-    .day-headers-row { display: grid; grid-template-columns: repeat(7,1fr); padding: 0 12px; gap: 2px; margin-bottom: 4px; }
-    .day-header { text-align: center; font-size: 10px; color: #8a7a5a; letter-spacing: 1px; padding: 4px 0; }
-    #cal-grid { display: grid; grid-template-columns: repeat(7,1fr); padding: 0 12px; gap: 4px; }
+    /* ── Calendar ── */
+    .cal-nav { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px 6px; }
+    .nav-btn  { background: #1a1208; border: 1px solid #3a2e10; border-radius: 8px; color: #f5d78e; font-size: 20px; width: 36px; height: 36px; cursor: pointer; }
+    .cal-nav .month-label { font-size: 15px; font-weight: bold; color: #f5d78e; text-align: center; }
+    .cal-nav .year-label  { font-size: 11px; color: #8a7a5a; text-align: center; }
+    .day-headers { display: grid; grid-template-columns: repeat(7,1fr); padding: 0 12px; gap: 2px; margin-bottom: 4px; }
+    .day-header  { text-align: center; font-size: 10px; color: #8a7a5a; letter-spacing: 1px; padding: 4px 0; }
+    .cal-grid    { display: grid; grid-template-columns: repeat(7,1fr); padding: 0 12px; gap: 4px; }
 
-    /* ── Calendar cells ── */
-    .cal-cell {
-      min-height: 58px; border-radius: 8px; padding: 5px 3px; cursor: pointer;
-      display: flex; flex-direction: column; align-items: center;
-      transition: all .15s; border: 1px solid #2a2010; background: #161208;
-    }
-    /* Tip registered → bright green */
+    .cal-cell { min-height: 58px; border-radius: 8px; padding: 5px 3px; cursor: pointer; display: flex; flex-direction: column; align-items: center; transition: all .15s; border: 1px solid #2a2010; background: #161208; }
     .cal-cell.has-tip      { background: linear-gradient(135deg,#0f2a0a,#0a1f07); border-color: #3a7a2a; }
-    /* Morning shift, no tip → dark green */
     .cal-cell.has-morning  { background: linear-gradient(135deg,#0c2008,#081508); border-color: #2a5a20; }
-    /* Afternoon shift, no tip → skin tone */
     .cal-cell.has-afternoon{ background: linear-gradient(135deg,#281408,#1a0e06); border-color: #7a4a20; }
-    /* Today */
     .cal-cell.is-today     { border-color: #5a4a20; }
-
-    .day-num           { font-size: 12px; color: #a09070; }
+    .day-num { font-size: 12px; color: #a09070; }
     .day-num.today     { color: #c8922a; font-weight: bold; }
     .day-num.hastip    { color: #a8d8a0; }
     .day-num.ismorning { color: #5ab050; }
     .day-num.isafternoon{ color: #c8855a; }
-
-    .tip-bar       { width: 16px; height: 2px; background: #4a9a40; border-radius: 1px; margin-top: 3px; }
-    .morning-bar   { width: 16px; height: 2px; background: #3a7a30; border-radius: 1px; margin-top: 3px; }
-    .afternoon-bar { width: 16px; height: 2px; background: #8a5030; border-radius: 1px; margin-top: 3px; }
-
-    .tip-amt { font-size: 9px; color: #7ed870; font-weight: bold; margin-top: 2px; text-align: center; line-height: 1.2; }
-
-    /* Shift label inside tip cell */
-    .tip-shift-tag { font-size: 7px; letter-spacing: 0; margin-top: 1px; line-height: 1; }
+    .tip-amt  { font-size: 9px; color: #7ed870; font-weight: bold; margin-top: 2px; text-align: center; line-height: 1.2; }
+    .tip-bar  { width: 16px; height: 2px; background: #4a9a40; border-radius: 1px; margin-top: 3px; }
+    .shift-bar-m { width: 16px; height: 2px; background: #3a7a30; border-radius: 1px; margin-top: 3px; }
+    .shift-bar-t { width: 16px; height: 2px; background: #8a5030; border-radius: 1px; margin-top: 3px; }
+    .tip-shift-tag { font-size: 7px; margin-top: 1px; line-height: 1; }
     .tip-shift-tag.m { color: #3a8a30; }
     .tip-shift-tag.t { color: #a05030; }
 
     /* ── Detail list ── */
-    #detail { padding: 14px 16px 0; }
+    .detail { padding: 14px 16px 0; }
     .detail-title  { font-size: 10px; letter-spacing: 3px; color: #8a7a5a; text-transform: uppercase; margin-bottom: 10px; }
     .detail-row    { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2a2010; padding: 8px 0; }
     .detail-date   { font-size: 13px; color: #f0ead6; }
@@ -131,131 +137,107 @@
     .detail-footer { display: flex; justify-content: space-between; padding: 10px 0; }
     .detail-footer .lbl { font-size: 12px; color: #c8922a; letter-spacing: 1px; }
     .detail-footer .val { font-size: 15px; color: #f5d78e; font-weight: bold; }
-    .shift-pill {
-      display: inline-block; font-size: 9px; padding: 1px 6px; border-radius: 4px;
-      margin-left: 6px; vertical-align: middle; letter-spacing: 0;
-    }
+    .shift-pill { display: inline-block; font-size: 9px; padding: 1px 6px; border-radius: 4px; margin-left: 6px; vertical-align: middle; }
     .shift-pill.m { background: #0c2008; color: #5ab050; border: 1px solid #2a5a20; }
     .shift-pill.t { background: #281408; color: #c8855a; border: 1px solid #7a4a20; }
 
-    #tab-tips-inner { padding-bottom: 88px; }
-
-    /* ── Schedule tab ── */
-    #tab-schedule-inner { padding: 16px 16px 88px; }
-    .tab-title { font-size: 10px; letter-spacing: 3px; color: #8a7a5a; text-transform: uppercase; margin-bottom: 14px; }
-
-    /* PDF */
-    .upload-area {
-      border: 2px dashed #3a2e10; border-radius: 14px; padding: 36px 20px;
-      text-align: center; cursor: pointer; transition: border-color .2s;
-    }
-    .upload-area:hover { border-color: #c8922a; }
-    .upload-icon { font-size: 44px; margin-bottom: 10px; }
-    .upload-text { font-size: 14px; color: #f5d78e; margin-bottom: 4px; }
-    .upload-sub  { font-size: 11px; color: #5a4a30; }
-    #pdf-input { display: none; }
-    .pdf-bar {
-      display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;
-    }
-    .pdf-name { font-size: 12px; color: #8a7a5a; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .pdf-action-btn {
-      background: transparent; border: 1px solid #3a2e10; border-radius: 7px;
-      color: #8a7a5a; padding: 5px 10px; font-size: 11px; cursor: pointer;
-      font-family: inherit; margin-left: 8px; white-space: nowrap;
-    }
-    .pdf-action-btn.danger { border-color: #5a3a20; color: #c85a20; }
-    #pdf-pages canvas { width: 100%; display: block; margin-bottom: 4px; border-radius: 6px; }
-    #pdf-pages     { background: #111; border-radius: 10px; overflow: hidden; margin-bottom: 4px; }
-    #pdf-loading   { text-align: center; padding: 24px; font-size: 12px; color: #8a7a5a; }
-
-    /* Schedule mark calendar */
-    .sched-section { margin-top: 20px; }
-    .sched-title   { font-size: 10px; letter-spacing: 3px; color: #c8922a; text-transform: uppercase; margin-bottom: 12px; }
-    #sched-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-    #sched-nav .month-label { font-size: 15px; font-weight: bold; color: #f5d78e; text-align: center; }
-    #sched-nav .year-label  { font-size: 11px; color: #8a7a5a; text-align: center; }
-    #sched-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; }
-
-    .sched-cell {
-      min-height: 50px; border-radius: 7px; padding: 4px 2px; cursor: pointer;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      border: 1px solid #2a2010; background: #161208;
-      transition: all .12s; -webkit-tap-highlight-color: transparent;
-      user-select: none;
-    }
-    .sched-cell.morning   { background: linear-gradient(135deg,#0c2008,#081508); border-color: #2a5a20; }
-    .sched-cell.afternoon { background: linear-gradient(135deg,#281408,#1a0e06); border-color: #7a4a20; }
-    .sched-cell.is-today  { border-width: 2px; }
-
-    .sched-num           { font-size: 13px; color: #a09070; }
-    .sched-num.morning   { color: #5ab050; font-weight: bold; }
-    .sched-num.afternoon { color: #c8855a; font-weight: bold; }
-    .sched-num.today     { color: #c8922a; }
-
-    .sched-label { font-size: 9px; margin-top: 2px; line-height: 1; font-weight: bold; letter-spacing: .5px; }
-    .sched-label.morning   { color: #3a8a30; }
-    .sched-label.afternoon { color: #a05030; }
-
-    /* Cycle hint strip */
-    .sched-cycle-hint {
-      display: flex; gap: 6px; justify-content: center; align-items: center;
-      margin: 10px 0 4px; font-size: 10px; color: #5a4a30;
-    }
-    .cycle-step {
-      display: flex; align-items: center; gap: 4px; padding: 4px 8px;
-      border-radius: 6px; border: 1px solid #2a2010; background: #161208;
-    }
-    .cycle-step .dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+    /* ── Schedule mark ── */
+    .sched-cycle-hint { display: flex; gap: 6px; justify-content: center; align-items: center; margin: 10px 0 4px; font-size: 10px; color: #5a4a30; }
+    .cycle-step { display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 6px; border: 1px solid #2a2010; background: #161208; }
+    .cycle-dot  { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
     .dot-m { background: #1a4a10; border: 1px solid #2a5a20; }
     .dot-t { background: #3a1808; border: 1px solid #7a4a20; }
     .dot-x { background: #1a1208; border: 1px solid #2a2010; }
     .cycle-arrow { color: #3a2e10; font-size: 12px; }
-
+    .sched-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; }
+    .sched-cell { min-height: 48px; border-radius: 7px; padding: 4px 2px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #2a2010; background: #161208; transition: all .12s; -webkit-tap-highlight-color: transparent; user-select: none; }
+    .sched-cell.morning   { background: linear-gradient(135deg,#0c2008,#081508); border-color: #2a5a20; }
+    .sched-cell.afternoon { background: linear-gradient(135deg,#281408,#1a0e06); border-color: #7a4a20; }
+    .sched-cell.is-today  { border-width: 2px; }
+    .sched-cell.owner-edit { cursor: pointer; }
+    .sched-num { font-size: 13px; color: #a09070; }
+    .sched-num.morning   { color: #5ab050; font-weight: bold; }
+    .sched-num.afternoon { color: #c8855a; font-weight: bold; }
+    .sched-num.today     { color: #c8922a; }
+    .sched-lbl { font-size: 9px; margin-top: 2px; line-height: 1; font-weight: bold; letter-spacing: .5px; }
+    .sched-lbl.morning   { color: #3a8a30; }
+    .sched-lbl.afternoon { color: #a05030; }
     .sched-hint { font-size: 11px; color: #5a4a30; text-align: center; margin-top: 8px; }
 
+    /* ── PDF ── */
+    .upload-area { border: 2px dashed #3a2e10; border-radius: 14px; padding: 32px 20px; text-align: center; cursor: pointer; transition: border-color .2s; }
+    .upload-area:hover { border-color: #c8922a; }
+    .upload-icon { font-size: 40px; margin-bottom: 8px; }
+    .upload-text { font-size: 14px; color: #f5d78e; margin-bottom: 4px; }
+    .upload-sub  { font-size: 11px; color: #5a4a30; }
+    .pdf-bar     { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .pdf-name    { font-size: 12px; color: #8a7a5a; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .btn-sm { background: transparent; border: 1px solid #3a2e10; border-radius: 7px; color: #8a7a5a; padding: 5px 10px; font-size: 11px; cursor: pointer; margin-left: 8px; white-space: nowrap; }
+    .btn-sm.danger { border-color: #5a3a20; color: #c85a20; }
+    .btn-sm.accent { border-color: #5a4020; color: #c8922a; }
+    #pdf-pages canvas { width: 100%; display: block; margin-bottom: 4px; border-radius: 6px; }
+    #pdf-pages  { background: #111; border-radius: 10px; overflow: hidden; margin-bottom: 4px; }
+    #pdf-loading { text-align: center; padding: 24px; font-size: 12px; color: #8a7a5a; }
+
+    /* ── Owner dashboard ── */
+    .section-title { font-size: 10px; letter-spacing: 3px; color: #c8922a; text-transform: uppercase; margin-bottom: 4px; }
+    .section-sep   { height: 1px; background: #2a2010; margin: 8px 0 14px; }
+    .emp-card { background: #161208; border: 1px solid #2a2010; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; }
+    .emp-card-name  { font-size: 15px; color: #f5d78e; font-weight: bold; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+    .emp-avatar { width: 28px; height: 28px; border-radius: 50%; background: #2a1f08; border: 1px solid #5a4a20; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #c8922a; flex-shrink: 0; }
+    .emp-stats  { display: flex; gap: 16px; flex-wrap: wrap; }
+    .emp-stat   { font-size: 11px; color: #8a7a5a; }
+    .emp-stat strong { color: #7ed870; font-size: 13px; display: block; margin-top: 1px; }
+    .invite-box { background: #0f0e0d; border: 1px solid #3a2e10; border-radius: 12px; padding: 18px 16px; text-align: center; margin-top: 16px; }
+    .invite-lbl  { font-size: 10px; letter-spacing: 3px; color: #8a7a5a; text-transform: uppercase; margin-bottom: 8px; }
+    .invite-code { font-size: 30px; letter-spacing: 8px; color: #f5d78e; font-weight: bold; margin-bottom: 10px; }
+    .copy-btn { background: transparent; border: 1px solid #3a2e10; border-radius: 8px; color: #c8922a; padding: 8px 18px; font-size: 12px; cursor: pointer; }
+    .no-team { text-align: center; padding: 40px 20px; color: #5a4a30; font-size: 13px; line-height: 1.8; }
+    .emp-selector { width: 100%; background: #0f0e0d; border: 1px solid #3a2e10; border-radius: 8px; color: #f0ead6; padding: 10px 12px; font-size: 14px; outline: none; margin-bottom: 12px; }
+    .summary-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    .summary-table th { font-size: 10px; color: #8a7a5a; text-transform: uppercase; letter-spacing: 1px; padding: 6px 8px; text-align: left; border-bottom: 1px solid #3a2e10; }
+    .summary-table td { padding: 9px 8px; font-size: 13px; border-bottom: 1px solid #1a1808; }
+    .summary-table .amt { color: #7ed870; font-weight: bold; text-align: right; }
+    .summary-table tfoot td { color: #f5d78e; font-weight: bold; border-top: 1px solid #c8922a; }
+    .export-row { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+
     /* ── Settings ── */
-    #tab-settings-inner { padding: 20px 16px 88px; }
-    .settings-section  { margin-bottom: 26px; }
-    .settings-title    { font-size: 10px; letter-spacing: 3px; color: #c8922a; text-transform: uppercase; }
-    .settings-sep      { height: 1px; background: #2a2010; margin: 10px 0 14px; }
-    .settings-row      { display: flex; justify-content: space-between; align-items: center; padding: 11px 0; border-bottom: 1px solid #2a2010; }
+    .settings-row { display: flex; justify-content: space-between; align-items: center; padding: 11px 0; border-bottom: 1px solid #2a2010; }
     .settings-label    { font-size: 14px; color: #f0ead6; }
     .settings-sublabel { font-size: 11px; color: #5a4a30; margin-top: 2px; }
-    .settings-input    { background: #0f0e0d; border: 1px solid #3a2e10; border-radius: 8px; color: #f0ead6; padding: 8px 12px; font-size: 15px; outline: none; text-align: center; width: 80px; font-family: inherit; }
-    .settings-input-wide { width: 160px; text-align: left; }
-    .settings-save-btn { width: 100%; background: linear-gradient(135deg,#c8922a,#a06b10); border: none; border-radius: 12px; color: #0f0e0d; font-weight: bold; padding: 13px; font-size: 14px; cursor: pointer; margin-top: 10px; font-family: inherit; }
-    .settings-version  { font-size: 11px; color: #3a2e10; text-align: center; margin-top: 24px; }
-    .btn-data { background: transparent; border: 1px solid #3a2e10; border-radius: 8px; color: #8a7a5a; padding: 6px 12px; font-size: 11px; cursor: pointer; font-family: inherit; white-space: nowrap; }
+    .settings-input    { background: #0f0e0d; border: 1px solid #3a2e10; border-radius: 8px; color: #f0ead6; padding: 8px 12px; font-size: 15px; outline: none; text-align: center; width: 80px; }
+    .settings-input-w  { width: 160px; text-align: left; }
+    .settings-save     { width: 100%; background: linear-gradient(135deg,#c8922a,#a06b10); border: none; border-radius: 12px; color: #0f0e0d; font-weight: bold; padding: 13px; font-size: 14px; cursor: pointer; margin-top: 10px; }
+    .btn-data { background: transparent; border: 1px solid #3a2e10; border-radius: 8px; color: #8a7a5a; padding: 6px 12px; font-size: 11px; cursor: pointer; white-space: nowrap; }
+    .danger-zone { margin-top: 24px; padding: 14px; border: 1px solid #3a1818; border-radius: 10px; }
+    .danger-zone p { font-size: 11px; color: #8a5a5a; margin-bottom: 10px; }
+    .btn-danger { background: transparent; border: 1px solid #5a2020; border-radius: 8px; color: #c85050; padding: 8px 16px; font-size: 12px; cursor: pointer; }
 
     /* ── Modals ── */
     .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.75); display: none; z-index: 100; }
     .overlay.show   { display: flex; }
     .overlay.bottom { align-items: flex-end; justify-content: center; }
     .overlay.middle { align-items: center; justify-content: center; padding: 20px; }
-    .sheet {
-      background: #1a1208; border-radius: 20px 20px 0 0; border: 1px solid #3a2e10; border-bottom: none;
-      width: 100%; max-width: 480px;
-      padding: 24px 20px calc(24px + env(safe-area-inset-bottom,0px));
-    }
+    .sheet  { background: #1a1208; border-radius: 20px 20px 0 0; border: 1px solid #3a2e10; border-bottom: none; width: 100%; max-width: 480px; padding: 24px 20px calc(24px + env(safe-area-inset-bottom,0px)); }
     .dialog { background: #1a1208; border-radius: 16px; border: 1px solid #3a2e10; width: 100%; max-width: 360px; padding: 24px 20px; }
     .form-sublabel { font-size: 11px; letter-spacing: 3px; color: #8a7a5a; text-transform: uppercase; margin-bottom: 4px; }
     .form-date  { font-size: 18px; color: #f5d78e; margin-bottom: 20px; font-weight: bold; }
     .form-label { display: block; font-size: 10px; letter-spacing: 2px; color: #8a7a5a; text-transform: uppercase; margin-bottom: 6px; margin-top: 14px; }
-    .form-input { width: 100%; background: #0f0e0d; border: 1px solid #3a2e10; border-radius: 8px; color: #f0ead6; padding: 10px 12px; font-size: 15px; outline: none; font-family: inherit; }
+    .form-input { width: 100%; background: #0f0e0d; border: 1px solid #3a2e10; border-radius: 8px; color: #f0ead6; padding: 10px 12px; font-size: 15px; outline: none; }
     .split-btns { display: flex; gap: 8px; }
-    .split-btn  { flex: 1; padding: 10px; border-radius: 8px; font-size: 13px; cursor: pointer; background: transparent; color: #8a7a5a; border: 1px solid #3a2e10; font-family: inherit; }
+    .split-btn  { flex: 1; padding: 10px; border-radius: 8px; font-size: 13px; cursor: pointer; background: transparent; color: #8a7a5a; border: 1px solid #3a2e10; }
     .split-btn.active { background: #c8922a; color: #0f0e0d; border: none; font-weight: bold; }
     .preview-box { background: #0f1f0a; border: 1px solid #3a6a30; border-radius: 8px; padding: 10px 14px; margin-top: 10px; display: none; justify-content: space-between; align-items: center; }
     .preview-box.show { display: flex; }
     .preview-label  { font-size: 11px; color: #8a7a5a; letter-spacing: 1px; }
     .preview-amount { font-size: 20px; color: #7ed870; font-weight: bold; }
     .btn-row    { display: flex; gap: 10px; margin-top: 16px; }
-    .btn-cancel { flex: 1; background: transparent; border: 1px solid #3a2e10; border-radius: 10px; color: #8a7a5a; padding: 12px; cursor: pointer; font-size: 13px; font-family: inherit; }
-    .btn-delete { flex: 1; background: transparent; border: 1px solid #5a3a20; border-radius: 10px; color: #c85a20; padding: 12px; cursor: pointer; font-size: 13px; display: none; font-family: inherit; }
+    .btn-cancel { flex: 1; background: transparent; border: 1px solid #3a2e10; border-radius: 10px; color: #8a7a5a; padding: 12px; cursor: pointer; font-size: 13px; }
+    .btn-delete { flex: 1; background: transparent; border: 1px solid #5a3a20; border-radius: 10px; color: #c85a20; padding: 12px; cursor: pointer; font-size: 13px; display: none; }
     .btn-delete.show { display: block; }
-    .btn-save   { flex: 2; background: #2a2010; border: none; border-radius: 10px; color: #5a4a30; font-weight: bold; padding: 12px; cursor: not-allowed; font-size: 13px; font-family: inherit; }
+    .btn-save   { flex: 2; background: #2a2010; border: none; border-radius: 10px; color: #5a4a30; font-weight: bold; padding: 12px; cursor: not-allowed; font-size: 13px; }
     .btn-save.ready { background: linear-gradient(135deg,#c8922a,#a06b10); color: #0f0e0d; cursor: pointer; }
-    .btn-edit   { flex: 2; background: linear-gradient(135deg,#c8922a,#a06b10); border: none; border-radius: 10px; color: #0f0e0d; font-weight: bold; padding: 12px; cursor: pointer; font-size: 13px; font-family: inherit; }
+    .btn-edit   { flex: 2; background: linear-gradient(135deg,#c8922a,#a06b10); border: none; border-radius: 10px; color: #0f0e0d; font-weight: bold; padding: 12px; cursor: pointer; font-size: 13px; }
     .confirm-tag    { font-size: 11px; letter-spacing: 3px; color: #c8922a; text-transform: uppercase; margin-bottom: 8px; }
     .confirm-date   { font-size: 16px; color: #f5d78e; font-weight: bold; margin-bottom: 4px; }
     .confirm-amount { font-size: 24px; color: #7ed870; font-weight: bold; margin: 12px 0; }
@@ -264,742 +246,885 @@
     /* ── Install banner ── */
     #install-banner { display: none; background: #1a1208; border-bottom: 1px solid #c8922a; padding: 10px 16px; justify-content: space-between; align-items: center; }
     #install-banner.show { display: flex; }
-    .install-text    { font-size: 12px; color: #f5d78e; }
-    .install-btn     { background: #c8922a; border: none; border-radius: 8px; color: #0f0e0d; font-weight: bold; padding: 6px 14px; font-size: 12px; cursor: pointer; font-family: inherit; }
-    .install-dismiss { background: transparent; border: none; color: #5a4a30; font-size: 18px; cursor: pointer; padding: 0 0 0 8px; }
+    .install-text { font-size: 12px; color: #f5d78e; }
+    .install-btn  { background: #c8922a; border: none; border-radius: 8px; color: #0f0e0d; font-weight: bold; padding: 6px 14px; font-size: 12px; cursor: pointer; }
+    .install-x    { background: transparent; border: none; color: #5a4a30; font-size: 18px; cursor: pointer; padding: 0 0 0 8px; }
+    .version-note { font-size: 11px; color: #3a2e10; text-align: center; margin-top: 24px; }
   </style>
 </head>
 <body>
 
-<!-- Install banner -->
+<!-- ══ PWA install banner ══ -->
 <div id="install-banner">
   <span class="install-text">Instalá la app para acceso rápido</span>
   <div style="display:flex;gap:8px;align-items:center;">
-    <button class="install-btn" onclick="installApp()">Instalar</button>
-    <button class="install-dismiss" onclick="dismissInstall()">✕</button>
+    <button class="install-btn" onclick="installPWA()">Instalar</button>
+    <button class="install-x"   onclick="dismissInstall()">✕</button>
   </div>
 </div>
 
-<!-- Header -->
-<div id="header">
-  <div class="sub">Registro de</div>
-  <h1>Propinas ☕</h1>
-  <div class="byline" id="header-byline">Café</div>
-</div>
+<!-- ══ VIEW: Loading ══ -->
+<div id="view-loading"><div class="spinner"></div></div>
 
-<!-- Stats -->
-<div id="stats">
-  <div class="stat">
-    <div class="stat-label">Este mes</div>
-    <div class="stat-value" id="stat-month">$0</div>
-    <div class="stat-sub"   id="stat-month-days">0 días</div>
-  </div>
-  <div class="stat-divider"></div>
-  <div class="stat">
-    <div class="stat-label">Total acumulado</div>
-    <div class="stat-value" id="stat-total">$0</div>
-    <div class="stat-sub"   id="stat-total-days">0 días</div>
-  </div>
-  <div class="stat-divider"></div>
-  <div class="stat">
-    <div class="stat-label">Promedio/día</div>
-    <div class="stat-value" id="stat-avg">—</div>
-    <div class="stat-sub">todos</div>
-  </div>
-</div>
-
-<!-- Legend -->
-<div id="legend">
-  <div class="legend-item"><div class="legend-swatch ls-morning"></div>Mañana</div>
-  <div class="legend-item"><div class="legend-swatch ls-afternoon"></div>Tarde</div>
-  <div class="legend-item"><div class="legend-swatch ls-tip"></div>Propina cargada</div>
-</div>
-
-<!-- ══ TAB: PROPINAS ══ -->
-<div id="tab-tips" class="tab-content active">
-  <div id="tab-tips-inner">
-    <div id="cal-nav">
-      <button class="nav-btn" onclick="changeMonth(-1)">‹</button>
-      <div>
-        <div class="month-label" id="month-label"></div>
-        <div class="year-label"  id="year-label"></div>
+<!-- ══ VIEW: Auth ══ -->
+<div id="view-auth" style="display:none;">
+  <div class="auth-wrap">
+    <div class="auth-logo">
+      <div class="ico">☕</div>
+      <h1>Propinas Café</h1>
+      <p>Registro de propinas y turnos</p>
+    </div>
+    <div class="auth-card">
+      <div class="auth-tabs">
+        <button class="auth-tab active" onclick="setAuthTab('login')">Iniciar sesión</button>
+        <button class="auth-tab"        onclick="setAuthTab('register')">Registrarse</button>
       </div>
-      <button class="nav-btn" onclick="changeMonth(1)">›</button>
-    </div>
-    <div class="day-headers-row">
-      <div class="day-header">Lun</div><div class="day-header">Mar</div><div class="day-header">Mié</div>
-      <div class="day-header">Jue</div><div class="day-header">Vie</div><div class="day-header">Sáb</div><div class="day-header">Dom</div>
-    </div>
-    <div id="cal-grid"></div>
-    <div id="detail"></div>
-  </div>
-</div>
-
-<!-- ══ TAB: HORARIO ══ -->
-<div id="tab-schedule" class="tab-content">
-  <div id="tab-schedule-inner">
-
-    <!-- PDF -->
-    <div class="tab-title">Horario original (PDF)</div>
-    <div id="upload-area" class="upload-area" onclick="document.getElementById('pdf-input').click()">
-      <div class="upload-icon">📋</div>
-      <div class="upload-text">Subir horario (PDF)</div>
-      <div class="upload-sub">Tocá para seleccionar el archivo</div>
-    </div>
-    <input type="file" id="pdf-input" accept="application/pdf,.pdf" onchange="handlePDFUpload(event)" />
-    <div id="pdf-section" style="display:none;">
-      <div class="pdf-bar">
-        <span class="pdf-name" id="pdf-name-label"></span>
-        <button class="pdf-action-btn" onclick="document.getElementById('pdf-input').click()">Cambiar</button>
-        <button class="pdf-action-btn danger" onclick="deletePDF()">Eliminar</button>
+      <div id="auth-err" class="auth-err"></div>
+      <!-- Name (register only) -->
+      <div class="field" id="field-name" style="display:none;">
+        <label>Tu nombre</label>
+        <input id="auth-name" type="text" placeholder="ej: André" />
       </div>
-      <div id="pdf-loading">Cargando PDF…</div>
-      <div id="pdf-pages"></div>
-    </div>
-
-    <!-- Schedule mark calendar -->
-    <div class="sched-section">
-      <div class="sched-title">Mis turnos</div>
-
-      <!-- Cycle hint -->
-      <div class="sched-cycle-hint">
-        <div class="cycle-step"><div class="dot dot-x"></div>Libre</div>
-        <span class="cycle-arrow">›</span>
-        <div class="cycle-step"><div class="dot dot-m"></div>Mañana</div>
-        <span class="cycle-arrow">›</span>
-        <div class="cycle-step"><div class="dot dot-t"></div>Tarde</div>
+      <div class="field">
+        <label>Email</label>
+        <input id="auth-email" type="email" placeholder="tu@email.com" />
       </div>
-
-      <div id="sched-nav" style="margin-top:12px;">
-        <button class="nav-btn" onclick="changeSchedMonth(-1)">‹</button>
-        <div>
-          <div class="month-label" id="sched-month-label"></div>
-          <div class="year-label"  id="sched-year-label"></div>
+      <div class="field">
+        <label>Contraseña</label>
+        <input id="auth-pass" type="password" placeholder="mínimo 6 caracteres" />
+      </div>
+      <!-- Role (register only) -->
+      <div id="field-role" style="display:none; margin-bottom:16px;">
+        <div style="font-size:10px;letter-spacing:2px;color:#8a7a5a;text-transform:uppercase;margin-bottom:10px;">Soy</div>
+        <div class="role-btns">
+          <button class="role-btn active" onclick="setRole('employee')" id="role-employee">
+            <span class="role-ico">👤</span>Empleado
+          </button>
+          <button class="role-btn" onclick="setRole('owner')" id="role-owner">
+            <span class="role-ico">🏪</span>Dueño / Encargado
+          </button>
         </div>
+      </div>
+      <button class="auth-btn" id="auth-submit" onclick="submitAuth()">Iniciar sesión</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ VIEW: Onboarding ══ -->
+<div id="view-onboard" style="display:none;">
+  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px 20px;background:radial-gradient(ellipse at top,#1a1208,#0f0e0d 70%);">
+    <div class="auth-wrap">
+      <div class="auth-logo"><div class="ico">☕</div></div>
+      <div class="auth-card">
+        <div id="onboard-err" class="auth-err"></div>
+        <!-- Owner: create café -->
+        <div id="onboard-owner-form">
+          <div class="onboard-title">Creá tu café</div>
+          <div class="onboard-sub">Tu equipo se va a unir con el código que te vamos a dar.</div>
+          <div class="field"><label>Nombre del café</label><input id="cafe-name-input" type="text" placeholder="ej: Café del Centro" /></div>
+          <div class="field"><label>Personas por turno (división de propinas)</label><input id="cafe-split-input" type="number" min="1" max="20" value="3" /></div>
+          <button class="auth-btn" onclick="createCafe()">Crear café</button>
+        </div>
+        <!-- Employee: join café -->
+        <div id="onboard-employee-form" style="display:none;">
+          <div class="onboard-title">Uníte al equipo</div>
+          <div class="onboard-sub">Pedile el código de invitación a tu encargado.</div>
+          <div class="field"><label>Código de invitación</label><input id="invite-input" type="text" placeholder="ej: AB3F7K" maxlength="6" style="text-transform:uppercase;letter-spacing:4px;font-size:18px;" /></div>
+          <button class="auth-btn" onclick="joinCafe()">Unirme al equipo</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ VIEW: Employee ══ -->
+<div id="view-employee" style="display:none;">
+  <div class="app-header" style="position:relative;">
+    <div class="sub">Registro de</div>
+    <h1>Propinas ☕</h1>
+    <div class="byline" id="emp-byline">Café</div>
+    <button class="logout-btn" onclick="logout()">Salir</button>
+  </div>
+  <div class="stats-bar">
+    <div class="stat"><div class="stat-label">Este mes</div><div class="stat-value" id="stat-month">$0</div><div class="stat-sub" id="stat-month-days">0 días</div></div>
+    <div class="stat-divider"></div>
+    <div class="stat"><div class="stat-label">Total acumulado</div><div class="stat-value" id="stat-total">$0</div><div class="stat-sub" id="stat-total-days">0 días</div></div>
+    <div class="stat-divider"></div>
+    <div class="stat"><div class="stat-label">Promedio/día</div><div class="stat-value" id="stat-avg">—</div><div class="stat-sub">todos</div></div>
+  </div>
+  <div class="legend-bar">
+    <div class="legend-item"><div class="legend-swatch ls-morning"></div>Mañana</div>
+    <div class="legend-item"><div class="legend-swatch ls-afternoon"></div>Tarde</div>
+    <div class="legend-item"><div class="legend-swatch ls-tip"></div>Propina cargada</div>
+  </div>
+
+  <!-- Tab: Propinas -->
+  <div id="emp-tab-tips" class="tab-content active">
+    <div class="tab-inner">
+      <div class="cal-nav">
+        <button class="nav-btn" onclick="changeMonth(-1)">‹</button>
+        <div><div class="month-label" id="month-label"></div><div class="year-label" id="year-label"></div></div>
+        <button class="nav-btn" onclick="changeMonth(1)">›</button>
+      </div>
+      <div class="day-headers"><div class="day-header">Lun</div><div class="day-header">Mar</div><div class="day-header">Mié</div><div class="day-header">Jue</div><div class="day-header">Vie</div><div class="day-header">Sáb</div><div class="day-header">Dom</div></div>
+      <div id="cal-grid" class="cal-grid"></div>
+      <div id="emp-detail" class="detail"></div>
+    </div>
+  </div>
+
+  <!-- Tab: Horario -->
+  <div id="emp-tab-schedule" class="tab-content">
+    <div class="tab-inner" style="padding:16px 16px 88px;">
+      <div style="font-size:10px;letter-spacing:3px;color:#8a7a5a;text-transform:uppercase;margin-bottom:14px;">Horario del mes</div>
+      <div id="emp-pdf-section" style="display:none; margin-bottom:20px;">
+        <div class="pdf-bar"><span class="pdf-name" id="emp-pdf-name"></span><button class="btn-sm accent" onclick="reloadSchedulePDF()">↻ Actualizar</button></div>
+        <div id="pdf-loading" style="display:none;">Cargando PDF…</div>
+        <div id="pdf-pages"></div>
+      </div>
+      <div id="emp-no-pdf" style="text-align:center;padding:20px;color:#5a4a30;font-size:12px;margin-bottom:20px;display:none;">El encargado no subió el horario todavía.</div>
+      <!-- Shifts (read-only for employee) -->
+      <div style="font-size:10px;letter-spacing:3px;color:#c8922a;text-transform:uppercase;margin-bottom:10px;">Mis turnos</div>
+      <div class="cal-nav" style="padding:0 0 8px;">
+        <button class="nav-btn" onclick="changeSchedMonth(-1)">‹</button>
+        <div><div class="month-label" id="sched-month-label"></div><div class="year-label" id="sched-year-label"></div></div>
         <button class="nav-btn" onclick="changeSchedMonth(1)">›</button>
       </div>
-
-      <div class="day-headers-row" style="margin-top:10px;">
-        <div class="day-header">Lun</div><div class="day-header">Mar</div><div class="day-header">Mié</div>
-        <div class="day-header">Jue</div><div class="day-header">Vie</div><div class="day-header">Sáb</div><div class="day-header">Dom</div>
-      </div>
-      <div id="sched-grid"></div>
-      <p class="sched-hint">Cada toque cambia el estado del día.</p>
+      <div class="day-headers"><div class="day-header">Lun</div><div class="day-header">Mar</div><div class="day-header">Mié</div><div class="day-header">Jue</div><div class="day-header">Vie</div><div class="day-header">Sáb</div><div class="day-header">Dom</div></div>
+      <div id="sched-grid" class="sched-grid"></div>
+      <p class="sched-hint" style="margin-top:10px;">Tu horario es asignado por el encargado.</p>
     </div>
-
   </div>
-</div>
 
-<!-- ══ TAB: AJUSTES ══ -->
-<div id="tab-settings" class="tab-content">
-  <div id="tab-settings-inner">
-
-    <div class="settings-section">
-      <div class="settings-title">Mi perfil</div>
-      <div class="settings-sep"></div>
-      <div class="settings-row">
-        <div>
-          <div class="settings-label">Mi nombre</div>
-          <div class="settings-sublabel">Se muestra en el encabezado</div>
-        </div>
-        <input class="settings-input settings-input-wide" type="text" id="settings-name" placeholder="Tu nombre" />
+  <!-- Tab: Ajustes -->
+  <div id="emp-tab-settings" class="tab-content">
+    <div class="tab-inner" style="padding:20px 16px 88px;">
+      <div class="section-title">Mi perfil</div><div class="section-sep"></div>
+      <div class="settings-row"><div><div class="settings-label">Mi nombre</div><div class="settings-sublabel">Visible para el encargado</div></div><input class="settings-input settings-input-w" type="text" id="emp-name-input" /></div>
+      <button class="settings-save" id="emp-save-btn" onclick="saveEmpProfile()">Guardar nombre</button>
+      <div class="section-title" style="margin-top:28px;">Datos</div><div class="section-sep"></div>
+      <div class="settings-row"><div><div class="settings-label">Exportar TXT</div><div class="settings-sublabel">Resumen legible de tus propinas</div></div><button class="btn-data" onclick="exportTXT()">TXT</button></div>
+      <div class="settings-row"><div><div class="settings-label">Exportar Word</div><div class="settings-sublabel">Tabla formateada para imprimir</div></div><button class="btn-data" onclick="exportDOC()">DOC</button></div>
+      <div class="settings-row"><div><div class="settings-label">Respaldo JSON</div><div class="settings-sublabel">Exportar o importar todos los datos</div></div>
+        <div style="display:flex;gap:6px;"><button class="btn-data" onclick="exportJSON()">Export</button><button class="btn-data" onclick="document.getElementById('import-file').click()">Import</button></div>
       </div>
+      <input type="file" id="import-file" accept=".json" onchange="importJSON(event)" style="display:none;" />
+      <div class="version-note">v3.0.0 · Propinas ☕ · PWA + Cloud</div>
     </div>
-
-    <div class="settings-section">
-      <div class="settings-title">División de propinas</div>
-      <div class="settings-sep"></div>
-      <div class="settings-row">
-        <div>
-          <div class="settings-label">Personas en el turno</div>
-          <div class="settings-sublabel">Total ÷ esta cantidad = tu parte</div>
-        </div>
-        <input class="settings-input" type="number" id="settings-split" min="1" max="20" placeholder="3" />
-      </div>
-      <div style="padding:10px 0 0;font-size:11px;color:#5a4a30;line-height:1.5;">
-        Ej: si el total es $9.000 y son 3 personas → $3.000 para vos.
-      </div>
-    </div>
-
-    <button class="settings-save-btn" id="settings-save-btn" onclick="saveSettingsForm()">Guardar cambios</button>
-
-    <div class="settings-section" style="margin-top:28px;">
-      <div class="settings-title">Datos</div>
-      <div class="settings-sep"></div>
-      <div class="settings-row">
-        <div><div class="settings-label">Exportar respaldo</div><div class="settings-sublabel">Propinas + horario → JSON</div></div>
-        <button class="btn-data" onclick="exportData()">JSON</button>
-      </div>
-      <div class="settings-row">
-        <div><div class="settings-label">Exportar como texto</div><div class="settings-sublabel">Resumen legible → TXT</div></div>
-        <button class="btn-data" onclick="exportTXT()">TXT</button>
-      </div>
-      <div class="settings-row">
-        <div><div class="settings-label">Exportar para Word</div><div class="settings-sublabel">Tabla formateada → DOC</div></div>
-        <button class="btn-data" onclick="exportDOC()">DOC</button>
-      </div>
-      <div class="settings-row">
-        <div><div class="settings-label">Importar</div><div class="settings-sublabel">Restaurar desde JSON</div></div>
-        <button class="btn-data" onclick="document.getElementById('import-input').click()">Importar</button>
-      </div>
-      <input type="file" id="import-input" accept=".json,application/json" onchange="importData(event)" style="display:none;" />
-    </div>
-
-    <div class="settings-version">v2.1.0 · Propinas ☕ · PWA</div>
   </div>
-</div>
 
-<!-- FAB -->
-<button id="fab" onclick="addToday()">+</button>
+  <button class="fab" id="emp-fab" onclick="addToday()">+</button>
+  <nav class="bottom-nav">
+    <button class="nav-tab active" id="emp-nav-tips"     onclick="showEmpTab('tips')"><span class="nav-tab-icon">📅</span><span>Propinas</span></button>
+    <button class="nav-tab"        id="emp-nav-schedule" onclick="showEmpTab('schedule')"><span class="nav-tab-icon">📋</span><span>Horario</span></button>
+    <button class="nav-tab"        id="emp-nav-settings" onclick="showEmpTab('settings')"><span class="nav-tab-icon">⚙️</span><span>Ajustes</span></button>
+  </nav>
 
-<!-- Bottom nav -->
-<nav id="bottom-nav">
-  <button class="nav-tab active" id="nav-tips"     onclick="showTab('tips')">
-    <span class="nav-tab-icon">📅</span><span>Propinas</span>
-  </button>
-  <button class="nav-tab"        id="nav-schedule" onclick="showTab('schedule')">
-    <span class="nav-tab-icon">📋</span><span>Horario</span>
-  </button>
-  <button class="nav-tab"        id="nav-settings" onclick="showTab('settings')">
-    <span class="nav-tab-icon">⚙️</span><span>Ajustes</span>
-  </button>
-</nav>
-
-<!-- Modal: form -->
-<div id="form-overlay" class="overlay bottom" onclick="bgClick(event,'form-overlay')">
-  <div class="sheet">
-    <div class="form-sublabel">Registrar propina</div>
-    <div class="form-date" id="form-date-label"></div>
-    <label class="form-label">Total del turno (CLP) *</label>
-    <input class="form-input" type="number" id="input-total" placeholder="ej: 6300" oninput="updatePreview()" />
-    <label class="form-label" id="split-label">División</label>
-    <div class="split-btns" id="split-btns-wrap">
-      <button class="split-btn active" id="btn-split-yes" onclick="setSplit(true)"></button>
-      <button class="split-btn"        id="btn-split-no"  onclick="setSplit(false)">Sólo mío</button>
+  <!-- Modals -->
+  <div id="form-overlay" class="overlay bottom" onclick="bgClick(event,'form-overlay')">
+    <div class="sheet">
+      <div class="form-sublabel">Registrar propina</div>
+      <div class="form-date" id="form-date-label"></div>
+      <label class="form-label">Total del turno (CLP) *</label>
+      <input class="form-input" type="number" id="input-total" placeholder="ej: 6300" oninput="updatePreview()" />
+      <label class="form-label" id="split-label">División</label>
+      <div class="split-btns" id="split-btns-wrap">
+        <button class="split-btn active" id="btn-split-yes" onclick="setSplit(true)"></button>
+        <button class="split-btn"        id="btn-split-no"  onclick="setSplit(false)">Sólo mío</button>
+      </div>
+      <div class="preview-box" id="preview-box"><span class="preview-label">TU PARTE</span><span class="preview-amount" id="preview-amount"></span></div>
+      <label class="form-label">Nota (opcional)</label>
+      <input class="form-input" type="text" id="input-note" placeholder="ej: turno corto..." />
+      <div class="btn-row">
+        <button class="btn-delete" id="btn-delete" onclick="deleteTip()">Eliminar</button>
+        <button class="btn-cancel" onclick="closeForm()">Cancelar</button>
+        <button class="btn-save"   id="btn-save"   onclick="saveTip()">Guardar</button>
+      </div>
     </div>
-    <div class="preview-box" id="preview-box">
-      <span class="preview-label">TU PARTE</span>
-      <span class="preview-amount" id="preview-amount"></span>
-    </div>
-    <label class="form-label">Nota (opcional)</label>
-    <input class="form-input" type="text" id="input-note" placeholder="ej: turno corto, fin de semana..." />
-    <div class="btn-row">
-      <button class="btn-delete" id="btn-delete" onclick="deleteTip()">Eliminar</button>
-      <button class="btn-cancel" onclick="closeForm()">Cancelar</button>
-      <button class="btn-save"   id="btn-save"   onclick="saveTip()">Guardar</button>
+  </div>
+  <div id="confirm-overlay" class="overlay middle" onclick="bgClick(event,'confirm-overlay')">
+    <div class="dialog">
+      <div class="confirm-tag">Ya tiene propina</div>
+      <div class="confirm-date"   id="confirm-date"></div>
+      <div class="confirm-amount" id="confirm-amount"></div>
+      <div class="confirm-q">¿Querés editar esta propina?</div>
+      <div class="btn-row"><button class="btn-cancel" onclick="closeConfirm()">Cancelar</button><button class="btn-edit" onclick="openEdit()">Editar</button></div>
     </div>
   </div>
 </div>
 
-<!-- Modal: confirm -->
-<div id="confirm-overlay" class="overlay middle" onclick="bgClick(event,'confirm-overlay')">
-  <div class="dialog">
-    <div class="confirm-tag">Ya tiene propina</div>
-    <div class="confirm-date"   id="confirm-date"></div>
-    <div class="confirm-amount" id="confirm-amount"></div>
-    <div class="confirm-q">¿Querés editar esta propina?</div>
-    <div class="btn-row">
-      <button class="btn-cancel" onclick="closeConfirm()">Cancelar</button>
-      <button class="btn-edit"   onclick="openEdit()">Editar</button>
+<!-- ══ VIEW: Owner ══ -->
+<div id="view-owner" style="display:none;">
+  <div class="app-header" style="position:relative;">
+    <div class="sub">Panel de</div>
+    <h1 id="owner-cafe-name">Café</h1>
+    <div class="byline" id="owner-byline"></div>
+    <button class="logout-btn" onclick="logout()">Salir</button>
+  </div>
+  <div class="stats-bar">
+    <div class="stat"><div class="stat-label">Mes · total café</div><div class="stat-value" id="own-stat-total">$0</div><div class="stat-sub" id="own-stat-days">0 días</div></div>
+    <div class="stat-divider"></div>
+    <div class="stat"><div class="stat-label">Empleados</div><div class="stat-value" id="own-stat-emps">0</div><div class="stat-sub">activos</div></div>
+    <div class="stat-divider"></div>
+    <div class="stat"><div class="stat-label">Promedio/persona</div><div class="stat-value" id="own-stat-avg">—</div><div class="stat-sub">este mes</div></div>
+  </div>
+
+  <!-- Tab: Equipo -->
+  <div id="own-tab-team" class="tab-content active">
+    <div class="tab-inner" style="padding:16px 16px 88px;">
+      <div class="section-title">Equipo este mes</div><div class="section-sep"></div>
+      <div id="owner-cal-nav" class="cal-nav" style="padding:0 0 12px;">
+        <button class="nav-btn" onclick="changeOwnerMonth(-1)">‹</button>
+        <div><div class="month-label" id="owner-month-label"></div><div class="year-label" id="owner-year-label"></div></div>
+        <button class="nav-btn" onclick="changeOwnerMonth(1)">›</button>
+      </div>
+      <div id="owner-team-list"></div>
+      <div class="invite-box">
+        <div class="invite-lbl">Código de invitación</div>
+        <div class="invite-code" id="owner-invite-code">——</div>
+        <button class="copy-btn" onclick="copyInvite()">Copiar código</button>
+        <div style="font-size:10px;color:#5a4a30;margin-top:8px;">Compartilo con tus empleados para que se unan</div>
+      </div>
     </div>
   </div>
+
+  <!-- Tab: Horario -->
+  <div id="own-tab-schedule" class="tab-content">
+    <div class="tab-inner" style="padding:16px 16px 88px;">
+      <div class="section-title">Horario PDF</div><div class="section-sep"></div>
+      <div id="own-upload-area" class="upload-area" onclick="document.getElementById('owner-pdf-input').click()">
+        <div class="upload-icon">📋</div><div class="upload-text">Subir horario (PDF)</div><div class="upload-sub">Visible para todos los empleados</div>
+      </div>
+      <input type="file" id="owner-pdf-input" accept="application/pdf,.pdf" onchange="ownerUploadPDF(event)" style="display:none;" />
+      <div id="own-pdf-section" style="display:none;">
+        <div class="pdf-bar"><span class="pdf-name" id="own-pdf-name"></span><button class="btn-sm" onclick="document.getElementById('owner-pdf-input').click()">Cambiar</button><button class="btn-sm danger" onclick="ownerDeletePDF()">Eliminar</button></div>
+        <div id="own-pdf-loading">Cargando…</div>
+        <div id="own-pdf-pages"></div>
+      </div>
+      <div class="section-title" style="margin-top:20px;">Turnos del equipo</div><div class="section-sep"></div>
+      <select class="emp-selector" id="shift-emp-select" onchange="renderOwnerShiftCal()">
+        <option value="">Seleccioná un empleado</option>
+      </select>
+      <div id="owner-sched-nav" class="cal-nav" style="padding:0 0 8px;">
+        <button class="nav-btn" onclick="changeOwnerSchedMonth(-1)">‹</button>
+        <div><div class="month-label" id="own-sched-month-label"></div><div class="year-label" id="own-sched-year-label"></div></div>
+        <button class="nav-btn" onclick="changeOwnerSchedMonth(1)">›</button>
+      </div>
+      <div class="day-headers"><div class="day-header">Lun</div><div class="day-header">Mar</div><div class="day-header">Mié</div><div class="day-header">Jue</div><div class="day-header">Vie</div><div class="day-header">Sáb</div><div class="day-header">Dom</div></div>
+      <div class="sched-cycle-hint"><div class="cycle-step"><div class="cycle-dot dot-x"></div>Libre</div><span class="cycle-arrow">›</span><div class="cycle-step"><div class="cycle-dot dot-m"></div>Mañana</div><span class="cycle-arrow">›</span><div class="cycle-step"><div class="cycle-dot dot-t"></div>Tarde</div></div>
+      <div id="owner-sched-grid" class="sched-grid" style="margin-top:8px;"></div>
+      <p class="sched-hint">Tocá un día para cambiar el turno del empleado seleccionado.</p>
+    </div>
+  </div>
+
+  <!-- Tab: Resumen -->
+  <div id="own-tab-summary" class="tab-content">
+    <div class="tab-inner" style="padding:16px 16px 88px;">
+      <div class="section-title">Resumen mensual</div><div class="section-sep"></div>
+      <div class="cal-nav" style="padding:0 0 12px;">
+        <button class="nav-btn" onclick="changeOwnerMonth(-1)">‹</button>
+        <div><div class="month-label" id="sum-month-label"></div><div class="year-label" id="sum-year-label"></div></div>
+        <button class="nav-btn" onclick="changeOwnerMonth(1)">›</button>
+      </div>
+      <div id="owner-summary-table"></div>
+      <div class="export-row">
+        <button class="btn-data" onclick="exportOwnerTXT()">Exportar TXT</button>
+        <button class="btn-data" onclick="exportOwnerDOC()">Exportar Word</button>
+      </div>
+    </div>
+  </div>
+
+  <nav class="bottom-nav">
+    <button class="nav-tab active" id="own-nav-team"     onclick="showOwnerTab('team')"><span class="nav-tab-icon">👥</span><span>Equipo</span></button>
+    <button class="nav-tab"        id="own-nav-schedule" onclick="showOwnerTab('schedule')"><span class="nav-tab-icon">📋</span><span>Horario</span></button>
+    <button class="nav-tab"        id="own-nav-summary"  onclick="showOwnerTab('summary')"><span class="nav-tab-icon">📊</span><span>Resumen</span></button>
+  </nav>
 </div>
 
 <script>
-/* ════════════════════════════════
-   CONSTANTS
-════════════════════════════════ */
-const MONTHS   = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
-                  "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+/* ══════════════════════════════════════════════════
+   CONFIG — reemplazá con tus credenciales de Supabase
+   ══════════════════════════════════════════════════ */
+const SUPABASE_URL = 'https://kgmuxpduwxfzoyzhywlz.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtnbXV4cGR1d3hmem95emh5d2x6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2MzkxNTksImV4cCI6MjA4NzIxNTE1OX0.5qa-frnOzw6ZZcKvW85vGcR5YogB7ZywGmbQqPT8uFA';
+
+/* ══════════════════════════════════════════════════
+   INIT SUPABASE
+   ══════════════════════════════════════════════════ */
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* ══════════════════════════════════════════════════
+   CONSTANTS & HELPERS
+   ══════════════════════════════════════════════════ */
+const MONTHS    = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const AUTO_NOTES = new Set(['x3','sólo mío']);
-const isAutoNote = n => !n || AUTO_NOTES.has(n) || /^÷\d+$/.test(n);
+const isAuto    = n => !n || AUTO_NOTES.has(n) || /^÷\d+$/.test(n);
+const fmt       = n  => '$' + Math.round(n).toLocaleString('es-CL');
+const dateStr   = (y,m,d) => `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+const daysIn    = (y,m) => new Date(y,m+1,0).getDate();
+const firstDay  = (y,m) => { const d=new Date(y,m,1).getDay(); return d===0?6:d-1; };
+const fmtDate   = ds => new Date(ds+'T12:00:00').toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long'});
+const fmtShort  = ds => new Date(ds+'T12:00:00').toLocaleDateString('es-CL',{weekday:'short',day:'numeric'});
+const todayStr  = () => { const t=new Date(); return dateStr(t.getFullYear(),t.getMonth(),t.getDate()); };
 
-/* ════════════════════════════════
-   SETTINGS
-════════════════════════════════ */
-let settings = { splitCount: 3, workerName: '' };
-function loadSettings() {
-  try { const r = localStorage.getItem('propinas-settings'); if (r) settings = {...settings,...JSON.parse(r)}; } catch {}
-  document.getElementById('settings-name').value  = settings.workerName || '';
-  document.getElementById('settings-split').value = settings.splitCount;
-  applySettings();
-}
-function applySettings() {
-  document.getElementById('header-byline').textContent =
-    settings.workerName ? 'Café · ' + settings.workerName : 'Café';
-  const n = settings.splitCount;
-  document.getElementById('btn-split-yes').textContent = n > 1 ? `÷${n} (somos ${n})` : 'Por partes iguales';
-  const wrap = document.getElementById('split-btns-wrap');
-  const lbl  = document.getElementById('split-label');
-  if (n === 1) { wrap.style.display='none'; lbl.style.display='none'; setSplit(false); }
-  else         { wrap.style.display='flex'; lbl.style.display='block'; }
-}
-function saveSettingsForm() {
-  settings.workerName = document.getElementById('settings-name').value.trim();
-  settings.splitCount = Math.max(1, Math.min(20, parseInt(document.getElementById('settings-split').value)||3));
-  localStorage.setItem('propinas-settings', JSON.stringify(settings));
-  applySettings();
-  const btn = document.getElementById('settings-save-btn');
-  btn.textContent = '✓ Guardado';
-  setTimeout(() => { btn.textContent = 'Guardar cambios'; }, 1800);
-}
-
-/* ════════════════════════════════
-   TIPS DATA
-════════════════════════════════ */
+/* ══════════════════════════════════════════════════
+   APP STATE
+   ══════════════════════════════════════════════════ */
 const today = new Date();
-let viewYear=today.getFullYear(), viewMonth=today.getMonth();
-let selectedDate=null, splitMode=true;
-let tips=[], tipMap={};
-function loadTips()  { try { const r=localStorage.getItem('propinas-cafe-v2'); if(r) return JSON.parse(r); } catch {} return []; }
-function saveTips()  { try { localStorage.setItem('propinas-cafe-v2', JSON.stringify(tips)); } catch {} }
-function buildMap()  { tipMap={}; tips.forEach(t=>{tipMap[t.date]=t;}); }
+let currentUser = null;
+let profile     = null;
+let cafe        = null;
+let employees   = [];        // owner: list of all profiles in café
+let allShifts   = new Map(); // key: `${empId}:${date}` → type (owner view)
 
-/* ════════════════════════════════
-   SHIFT DATA  (Map<date, 'mañana'|'tarde'>)
-════════════════════════════════ */
-let shiftMap = new Map();
-let schedYear=today.getFullYear(), schedMonth=today.getMonth();
+// Employee state
+let tips      = [], tipMap = {}, shiftMap = new Map();
+let viewYear  = today.getFullYear(), viewMonth  = today.getMonth();
+let schedYear = today.getFullYear(), schedMonth = today.getMonth();
+let selectedDate = null, splitMode = true, splitCount = 3;
 
-function loadShifts() {
+// Owner state
+let ownerViewYear  = today.getFullYear(), ownerViewMonth  = today.getMonth();
+let ownerSchedYear = today.getFullYear(), ownerSchedMonth = today.getMonth();
+let ownerTipsData  = []; // all tips for the café
+
+/* ══════════════════════════════════════════════════
+   VIEW ROUTING
+   ══════════════════════════════════════════════════ */
+const VIEWS = ['loading','auth','onboard','employee','owner'];
+function showView(name) {
+  VIEWS.forEach(v => {
+    const el = document.getElementById('view-'+v);
+    if (el) el.style.display = v===name ? '' : 'none';
+  });
+}
+
+/* ══════════════════════════════════════════════════
+   AUTH
+   ══════════════════════════════════════════════════ */
+let authMode = 'login', selectedRole = 'employee';
+
+function setAuthTab(mode) {
+  authMode = mode;
+  document.querySelectorAll('.auth-tab').forEach((b,i) => b.classList.toggle('active', (i===0&&mode==='login')||(i===1&&mode==='register')));
+  document.getElementById('field-name').style.display  = mode==='register' ? '' : 'none';
+  document.getElementById('field-role').style.display  = mode==='register' ? '' : 'none';
+  document.getElementById('auth-submit').textContent   = mode==='register' ? 'Registrarse' : 'Iniciar sesión';
+  document.getElementById('auth-err').classList.remove('show');
+}
+
+function setRole(r) {
+  selectedRole = r;
+  document.getElementById('role-employee').classList.toggle('active', r==='employee');
+  document.getElementById('role-owner').classList.toggle('active',    r==='owner');
+}
+
+function showAuthErr(msg) {
+  const el = document.getElementById('auth-err');
+  el.textContent = msg; el.classList.add('show');
+}
+
+async function submitAuth() {
+  const email = document.getElementById('auth-email').value.trim();
+  const pass  = document.getElementById('auth-pass').value;
+  if (!email || !pass) { showAuthErr('Completá todos los campos.'); return; }
+  document.getElementById('auth-submit').textContent = 'Cargando…';
+  document.getElementById('auth-submit').disabled = true;
   try {
-    const r = localStorage.getItem('propinas-shifts-v1');
-    if (r) { shiftMap = new Map(Object.entries(JSON.parse(r))); return; }
-    // migrate old boolean schedule
-    const old = localStorage.getItem('propinas-schedule');
-    if (old) { JSON.parse(old).forEach(d => shiftMap.set(d,'mañana')); }
-  } catch {}
-}
-function saveShifts() {
-  try { localStorage.setItem('propinas-shifts-v1', JSON.stringify(Object.fromEntries(shiftMap))); } catch {}
-}
-
-/* ════════════════════════════════
-   HELPERS
-════════════════════════════════ */
-const fmt      = n  => '$' + Math.round(n).toLocaleString('es-CL');
-const dateStr  = (y,m,d) => `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-const daysIn   = (y,m) => new Date(y,m+1,0).getDate();
-const firstDay = (y,m) => { const d=new Date(y,m,1).getDay(); return d===0?6:d-1; };
-const fmtDate  = ds => new Date(ds+'T12:00:00').toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long'});
-const fmtShort = ds => new Date(ds+'T12:00:00').toLocaleDateString('es-CL',{weekday:'short',day:'numeric'});
-function computedShare(val) {
-  const t=parseInt(val); if(isNaN(t)||t<=0) return null;
-  return splitMode ? Math.round(t/settings.splitCount) : t;
+    if (authMode === 'login') {
+      const { error } = await db.auth.signInWithPassword({ email, password: pass });
+      if (error) throw error;
+    } else {
+      const name = document.getElementById('auth-name').value.trim();
+      if (!name) { showAuthErr('Ingresá tu nombre.'); return; }
+      const { error } = await db.auth.signUp({ email, password: pass, options: { data: { name } } });
+      if (error) throw error;
+      // store role for onboarding
+      localStorage.setItem('pendingRole', selectedRole);
+    }
+  } catch(e) {
+    showAuthErr(e.message || 'Error al autenticar.');
+  } finally {
+    document.getElementById('auth-submit').textContent = authMode==='register' ? 'Registrarse' : 'Iniciar sesión';
+    document.getElementById('auth-submit').disabled = false;
+  }
 }
 
-/* ════════════════════════════════
-   TAB NAVIGATION
-════════════════════════════════ */
-function showTab(tab) {
-  document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach(el=>el.classList.remove('active'));
-  document.getElementById('tab-'+tab).classList.add('active');
-  document.getElementById('nav-'+tab).classList.add('active');
-  document.getElementById('fab').classList.toggle('hidden', tab!=='tips');
-  if (tab==='schedule') { schedYear=viewYear; schedMonth=viewMonth; renderSchedCalendar(); loadPDFPreview(); }
+async function createCafe() {
+  const name  = document.getElementById('cafe-name-input').value.trim();
+  const split = parseInt(document.getElementById('cafe-split-input').value) || 3;
+  if (!name) { showOnboardErr('Ingresá el nombre del café.'); return; }
+  const { data: cafeData, error: ce } = await db.from('cafes').insert({ name, owner_id: currentUser.id, split_count: split }).select().single();
+  if (ce) { showOnboardErr(ce.message); return; }
+  await db.from('profiles').update({ role: 'owner', cafe_id: cafeData.id }).eq('id', currentUser.id);
+  await loadProfile();
 }
 
-/* ════════════════════════════════
-   MAIN CALENDAR
-════════════════════════════════ */
+async function joinCafe() {
+  const code = document.getElementById('invite-input').value.trim().toUpperCase();
+  if (code.length !== 6) { showOnboardErr('El código debe tener 6 caracteres.'); return; }
+  const { data: cafeData, error: ce } = await db.from('cafes').select('id').eq('invite_code', code).single();
+  if (ce || !cafeData) { showOnboardErr('Código inválido. Verificá con tu encargado.'); return; }
+  await db.from('profiles').update({ cafe_id: cafeData.id }).eq('id', currentUser.id);
+  await loadProfile();
+}
+
+function showOnboardErr(msg) {
+  const el = document.getElementById('onboard-err');
+  el.textContent = msg; el.classList.add('show');
+}
+
+async function logout() {
+  await db.auth.signOut();
+  tips=[]; tipMap={}; shiftMap=new Map(); profile=null; cafe=null; employees=[];
+  localStorage.removeItem('propinas-cafe-v2'); localStorage.removeItem('propinas-shifts-v1');
+  showView('auth');
+}
+
+/* ══════════════════════════════════════════════════
+   BOOT — check session & route
+   ══════════════════════════════════════════════════ */
+async function initApp() {
+  showView('loading');
+  db.auth.onAuthStateChange(async (event, session) => {
+    currentUser = session?.user ?? null;
+    if (!currentUser) { showView('auth'); return; }
+    await loadProfile();
+  });
+}
+
+async function loadProfile() {
+  const { data } = await db.from('profiles').select('*').eq('id', currentUser.id).single();
+  profile = data;
+  if (!profile?.cafe_id) {
+    // Show onboarding
+    const pendingRole = localStorage.getItem('pendingRole') || 'employee';
+    document.getElementById('onboard-owner-form').style.display    = pendingRole==='owner'    ? '' : 'none';
+    document.getElementById('onboard-employee-form').style.display = pendingRole==='employee' ? '' : 'none';
+    showView('onboard'); return;
+  }
+  // Load café
+  const { data: cafeData } = await db.from('cafes').select('*').eq('id', profile.cafe_id).single();
+  cafe = cafeData;
+  splitCount = cafe?.split_count || 3;
+  if (profile.role === 'owner') { await bootOwner(); }
+  else                          { await bootEmployee(); }
+}
+
+/* ══════════════════════════════════════════════════
+   EMPLOYEE BOOT
+   ══════════════════════════════════════════════════ */
+async function bootEmployee() {
+  await loadEmployeeTips();
+  await loadEmployeeShifts();
+  document.getElementById('emp-byline').textContent = `${cafe?.name || 'Café'} · ${profile?.name || ''}`;
+  document.getElementById('emp-name-input').value   = profile?.name || '';
+  document.getElementById('btn-split-yes').textContent = splitCount>1 ? `÷${splitCount} (somos ${splitCount})` : 'Por partes iguales';
+  if (splitCount===1) { document.getElementById('split-btns-wrap').style.display='none'; document.getElementById('split-label').style.display='none'; setSplit(false); }
+  showView('employee');
+  render();
+  renderSchedCalendar();
+  loadSchedulePDFForEmployee();
+}
+
+async function loadEmployeeTips() {
+  const { data } = await db.from('tips').select('*').eq('employee_id', currentUser.id).order('date');
+  if (data) {
+    tips = data.map(t => ({ date: t.date, total: t.total, myShare: t.my_share, note: t.note, splitMode: t.split_mode, splitCount: t.split_count }));
+    // also save to localStorage as cache
+    localStorage.setItem('propinas-cafe-v2', JSON.stringify(tips));
+  } else {
+    const cached = localStorage.getItem('propinas-cafe-v2');
+    if (cached) tips = JSON.parse(cached);
+  }
+  buildMap();
+}
+
+async function loadEmployeeShifts() {
+  const { data } = await db.from('shifts').select('date,type').eq('employee_id', currentUser.id);
+  shiftMap = new Map();
+  if (data) { data.forEach(s => shiftMap.set(s.date, s.type)); localStorage.setItem('propinas-shifts-v1', JSON.stringify(Object.fromEntries(shiftMap))); }
+  else { try { const c=localStorage.getItem('propinas-shifts-v1'); if(c) shiftMap=new Map(Object.entries(JSON.parse(c))); } catch {} }
+}
+
+async function saveEmpProfile() {
+  const name = document.getElementById('emp-name-input').value.trim();
+  if (!name) return;
+  await db.from('profiles').update({ name }).eq('id', currentUser.id);
+  profile.name = name;
+  document.getElementById('emp-byline').textContent = `${cafe?.name || 'Café'} · ${name}`;
+  const btn = document.getElementById('emp-save-btn');
+  btn.textContent = '✓ Guardado'; setTimeout(() => { btn.textContent = 'Guardar nombre'; }, 1800);
+}
+
+/* ══════════════════════════════════════════════════
+   EMPLOYEE — CALENDAR & TIPS
+   ══════════════════════════════════════════════════ */
+function buildMap() { tipMap={}; tips.forEach(t=>{tipMap[t.date]=t;}); }
+
 function changeMonth(dir) {
-  viewMonth+=dir;
-  if(viewMonth<0){viewMonth=11;viewYear--;} if(viewMonth>11){viewMonth=0;viewYear++;}
+  viewMonth+=dir; if(viewMonth<0){viewMonth=11;viewYear--;} if(viewMonth>11){viewMonth=0;viewYear++;}
   render();
 }
 function render() {
   document.getElementById('month-label').textContent = MONTHS[viewMonth];
   document.getElementById('year-label').textContent  = viewYear;
-
   const ms=`${viewYear}-${String(viewMonth+1).padStart(2,'0')}`;
-  const mt=tips.filter(t=>t.date.startsWith(ms));
-  const mTotal=mt.reduce((s,t)=>s+t.myShare,0), aTotal=tips.reduce((s,t)=>s+t.myShare,0);
+  const mt=tips.filter(t=>t.date.startsWith(ms)), mTotal=mt.reduce((s,t)=>s+t.myShare,0), aTotal=tips.reduce((s,t)=>s+t.myShare,0);
   document.getElementById('stat-month').textContent      = fmt(mTotal);
   document.getElementById('stat-month-days').textContent = mt.length+' días';
   document.getElementById('stat-total').textContent      = fmt(aTotal);
   document.getElementById('stat-total-days').textContent = tips.length+' días';
-  document.getElementById('stat-avg').textContent        = tips.length ? fmt(Math.round(aTotal/tips.length)) : '—';
-
+  document.getElementById('stat-avg').textContent        = tips.length?fmt(Math.round(aTotal/tips.length)):'—';
   const grid=document.getElementById('cal-grid'); grid.innerHTML='';
-  const todayStr=dateStr(today.getFullYear(),today.getMonth(),today.getDate());
-
+  const td=todayStr();
   for(let i=0;i<firstDay(viewYear,viewMonth);i++) grid.appendChild(document.createElement('div'));
-
   for(let d=1;d<=daysIn(viewYear,viewMonth);d++) {
-    const ds=dateStr(viewYear,viewMonth,d);
-    const tip=tipMap[ds], shift=shiftMap.get(ds), isToday=ds===todayStr;
-
+    const ds=dateStr(viewYear,viewMonth,d), tip=tipMap[ds], shift=shiftMap.get(ds), isToday=ds===td;
     const cell=document.createElement('div');
     let cls='cal-cell';
-    if(tip)                  cls+=' has-tip';
-    else if(shift==='mañana')cls+=' has-morning';
-    else if(shift==='tarde') cls+=' has-afternoon';
-    if(isToday) cls+=' is-today';
-    cell.className=cls;
-
+    if(tip) cls+=' has-tip'; else if(shift==='mañana') cls+=' has-morning'; else if(shift==='tarde') cls+=' has-afternoon';
+    if(isToday) cls+=' is-today'; cell.className=cls;
     const num=document.createElement('span');
     num.className='day-num'+(isToday?' today':tip?' hastip':shift==='mañana'?' ismorning':shift==='tarde'?' isafternoon':'');
     num.textContent=d; cell.appendChild(num);
-
-    if(tip) {
-      const amt=document.createElement('span');
-      amt.className='tip-amt'; amt.textContent=fmt(tip.myShare); cell.appendChild(amt);
-      const bar=document.createElement('div'); bar.className='tip-bar'; cell.appendChild(bar);
-      // show shift type on tip cell
-      if(shift) {
-        const tag=document.createElement('span');
-        tag.className='tip-shift-tag '+(shift==='mañana'?'m':'t');
-        tag.textContent=shift==='mañana'?'M':'T'; cell.appendChild(tag);
-      }
-    } else if(shift) {
-      const bar=document.createElement('div');
-      bar.className=shift==='mañana'?'morning-bar':'afternoon-bar';
-      cell.appendChild(bar);
-    }
-
-    cell.addEventListener('click',()=>selectDay(ds));
-    grid.appendChild(cell);
+    if(tip){const a=document.createElement('span');a.className='tip-amt';a.textContent=fmt(tip.myShare);cell.appendChild(a);const b=document.createElement('div');b.className='tip-bar';cell.appendChild(b);if(shift){const t2=document.createElement('span');t2.className='tip-shift-tag '+(shift==='mañana'?'m':'t');t2.textContent=shift==='mañana'?'M':'T';cell.appendChild(t2);}}
+    else if(shift){const b=document.createElement('div');b.className=shift==='mañana'?'shift-bar-m':'shift-bar-t';cell.appendChild(b);}
+    cell.addEventListener('click',()=>selectDay(ds)); grid.appendChild(cell);
   }
-
-  // Detail
-  const detail=document.getElementById('detail');
-  if(!mt.length){detail.innerHTML='';return;}
+  const det=document.getElementById('emp-detail');
+  if(!mt.length){det.innerHTML='';return;}
   const sorted=[...mt].sort((a,b)=>a.date.localeCompare(b.date));
   let html='<div class="detail-title">Detalle del mes</div>';
-  sorted.forEach(t=>{
-    const s=shiftMap.get(t.date);
-    const pill=s?`<span class="shift-pill ${s==='mañana'?'m':'t'}">${s==='mañana'?'Mañana':'Tarde'}</span>`:'';
-    html+=`<div class="detail-row">
-      <div>
-        <span class="detail-date">${fmtShort(t.date)}</span>${pill}
-        ${!isAutoNote(t.note)?`<span class="detail-note">${t.note}</span>`:''}
-      </div>
-      <div>
-        <div class="detail-amount">${fmt(t.myShare)}</div>
-        ${t.total?`<div class="detail-sub">total turno: ${fmt(t.total)}</div>`:''}
-      </div>
-    </div>`;
-  });
+  sorted.forEach(t=>{const s=shiftMap.get(t.date);const pill=s?`<span class="shift-pill ${s==='mañana'?'m':'t'}">${s==='mañana'?'Mañana':'Tarde'}</span>`:'';html+=`<div class="detail-row"><div><span class="detail-date">${fmtShort(t.date)}</span>${pill}${!isAuto(t.note)?`<span class="detail-note">${t.note}</span>`:''}</div><div><div class="detail-amount">${fmt(t.myShare)}</div>${t.total?`<div class="detail-sub">total turno: ${fmt(t.total)}</div>`:''}</div></div>`;});
   html+=`<div class="detail-footer"><span class="lbl">TOTAL MES</span><span class="val">${fmt(mTotal)}</span></div>`;
-  detail.innerHTML=html;
+  det.innerHTML=html;
 }
 
-/* ════════════════════════════════
-   TIP CRUD
-════════════════════════════════ */
 function selectDay(ds) {
   selectedDate=ds; const tip=tipMap[ds];
-  if(tip) {
-    document.getElementById('confirm-date').textContent  =fmtDate(ds);
-    document.getElementById('confirm-amount').textContent=fmt(tip.myShare);
-    document.getElementById('confirm-overlay').classList.add('show');
-  } else openForm(false);
+  if(tip){document.getElementById('confirm-date').textContent=fmtDate(ds);document.getElementById('confirm-amount').textContent=fmt(tip.myShare);document.getElementById('confirm-overlay').classList.add('show');}
+  else openForm(false);
 }
 function openForm(isEdit) {
-  applySettings();
   document.getElementById('form-date-label').textContent=fmtDate(selectedDate);
   const tip=tipMap[selectedDate];
-  if(isEdit&&tip) {
-    document.getElementById('input-total').value=tip.total||'';
-    document.getElementById('input-note').value=isAutoNote(tip.note)?'':(tip.note||'');
-    setSplit(tip.splitMode!==false&&tip.note!=='sólo mío');
-    document.getElementById('btn-delete').classList.add('show');
-  } else {
-    document.getElementById('input-total').value='';
-    document.getElementById('input-note').value='';
-    setSplit(settings.splitCount>1);
-    document.getElementById('btn-delete').classList.remove('show');
-  }
-  updatePreview();
-  document.getElementById('form-overlay').classList.add('show');
+  if(isEdit&&tip){document.getElementById('input-total').value=tip.total||'';document.getElementById('input-note').value=isAuto(tip.note)?'':(tip.note||'');setSplit(tip.splitMode!==false&&tip.note!=='sólo mío');document.getElementById('btn-delete').classList.add('show');}
+  else{document.getElementById('input-total').value='';document.getElementById('input-note').value='';setSplit(splitCount>1);document.getElementById('btn-delete').classList.remove('show');}
+  updatePreview(); document.getElementById('form-overlay').classList.add('show');
 }
-function openEdit()    { closeConfirm(); openForm(true); }
-function closeForm()   { document.getElementById('form-overlay').classList.remove('show'); }
-function closeConfirm(){ document.getElementById('confirm-overlay').classList.remove('show'); }
-function addToday() {
-  selectedDate=dateStr(today.getFullYear(),today.getMonth(),today.getDate());
-  viewYear=today.getFullYear(); viewMonth=today.getMonth(); render(); selectDay(selectedDate);
-}
-function setSplit(val) {
-  splitMode=val;
-  document.getElementById('btn-split-yes').className='split-btn'+(val?' active':'');
-  document.getElementById('btn-split-no').className='split-btn'+(!val?' active':'');
-  updatePreview();
-}
-function updatePreview() {
-  const share=computedShare(document.getElementById('input-total').value);
-  const box=document.getElementById('preview-box'), btn=document.getElementById('btn-save');
-  if(share){document.getElementById('preview-amount').textContent=fmt(share);box.classList.add('show');btn.classList.add('ready');}
-  else{box.classList.remove('show');btn.classList.remove('ready');}
-}
-function saveTip() {
-  const total=parseInt(document.getElementById('input-total').value);
-  if(isNaN(total)||total<=0) return;
-  const myShare=computedShare(total);
-  const noteInput=document.getElementById('input-note').value.trim();
-  const note=noteInput||(splitMode?`÷${settings.splitCount}`:'sólo mío');
-  tips=tips.filter(t=>t.date!==selectedDate);
-  tips.push({date:selectedDate,total,myShare,note,splitMode,splitCount:settings.splitCount});
-  tips.sort((a,b)=>a.date.localeCompare(b.date));
-  buildMap(); saveTips(); closeForm(); render();
-}
-function deleteTip() {
-  tips=tips.filter(t=>t.date!==selectedDate); buildMap(); saveTips(); closeForm(); render();
-}
-function bgClick(e,id) { if(e.target===document.getElementById(id)) document.getElementById(id).classList.remove('show'); }
+function openEdit(){closeConfirm();openForm(true);}
+function closeForm(){document.getElementById('form-overlay').classList.remove('show');}
+function closeConfirm(){document.getElementById('confirm-overlay').classList.remove('show');}
+function addToday(){selectedDate=todayStr();viewYear=today.getFullYear();viewMonth=today.getMonth();render();selectDay(selectedDate);}
+function setSplit(v){splitMode=v;document.getElementById('btn-split-yes').className='split-btn'+(v?' active':'');document.getElementById('btn-split-no').className='split-btn'+(!v?' active':'');updatePreview();}
+function updatePreview(){const s=compShare(document.getElementById('input-total').value);const box=document.getElementById('preview-box'),btn=document.getElementById('btn-save');if(s){document.getElementById('preview-amount').textContent=fmt(s);box.classList.add('show');btn.classList.add('ready');}else{box.classList.remove('show');btn.classList.remove('ready');}}
+function compShare(v){const t=parseInt(v);if(isNaN(t)||t<=0)return null;return splitMode?Math.round(t/splitCount):t;}
 
-/* ════════════════════════════════
-   SCHEDULE MARK CALENDAR
-   Cycle: undefined → 'mañana' → 'tarde' → undefined
-════════════════════════════════ */
-function changeSchedMonth(dir) {
-  schedMonth+=dir;
-  if(schedMonth<0){schedMonth=11;schedYear--;} if(schedMonth>11){schedMonth=0;schedYear++;}
-  renderSchedCalendar();
+async function saveTip() {
+  const total=parseInt(document.getElementById('input-total').value); if(isNaN(total)||total<=0)return;
+  const myShare=compShare(total), noteInput=document.getElementById('input-note').value.trim();
+  const note=noteInput||(splitMode?`÷${splitCount}`:'sólo mío');
+  const tipObj={date:selectedDate,total,myShare,note,splitMode,splitCount};
+  tips=tips.filter(t=>t.date!==selectedDate); tips.push(tipObj); tips.sort((a,b)=>a.date.localeCompare(b.date));
+  buildMap(); localStorage.setItem('propinas-cafe-v2',JSON.stringify(tips));
+  closeForm(); render();
+  // Sync to Supabase
+  await db.from('tips').upsert({ employee_id:currentUser.id, cafe_id:profile.cafe_id, date:selectedDate, total, my_share:myShare, note, split_mode:splitMode, split_count:splitCount }, { onConflict:'employee_id,date' });
 }
+
+async function deleteTip() {
+  tips=tips.filter(t=>t.date!==selectedDate); buildMap(); localStorage.setItem('propinas-cafe-v2',JSON.stringify(tips));
+  closeForm(); render();
+  await db.from('tips').delete().eq('employee_id',currentUser.id).eq('date',selectedDate);
+}
+
+function bgClick(e,id){if(e.target===document.getElementById(id))document.getElementById(id).classList.remove('show');}
+
+/* ══════════════════════════════════════════════════
+   EMPLOYEE — SCHEDULE (read-only, set by owner)
+   ══════════════════════════════════════════════════ */
+function changeSchedMonth(dir){schedMonth+=dir;if(schedMonth<0){schedMonth=11;schedYear--;}if(schedMonth>11){schedMonth=0;schedYear++;}renderSchedCalendar();}
 function renderSchedCalendar() {
   document.getElementById('sched-month-label').textContent=MONTHS[schedMonth];
   document.getElementById('sched-year-label').textContent=schedYear;
   const grid=document.getElementById('sched-grid'); grid.innerHTML='';
-  const todayStr=dateStr(today.getFullYear(),today.getMonth(),today.getDate());
+  const td=todayStr();
   for(let i=0;i<firstDay(schedYear,schedMonth);i++) grid.appendChild(document.createElement('div'));
-  for(let d=1;d<=daysIn(schedYear,schedMonth);d++) {
-    const ds=dateStr(schedYear,schedMonth,d);
-    const shift=shiftMap.get(ds), isToday=ds===todayStr;
+  for(let d=1;d<=daysIn(schedYear,schedMonth);d++){
+    const ds=dateStr(schedYear,schedMonth,d), shift=shiftMap.get(ds), isToday=ds===td;
     const cell=document.createElement('div');
-    cell.className='sched-cell'+(shift===' mañana'?' morning':shift==='tarde'?' afternoon':'')+(isToday?' is-today':'');
-    // fix space above
     cell.className='sched-cell'+(shift==='mañana'?' morning':shift==='tarde'?' afternoon':'')+(isToday?' is-today':'');
-
-    const num=document.createElement('span');
-    num.className='sched-num'+(shift==='mañana'?' morning':shift==='tarde'?' afternoon':isToday?' today':'');
-    num.textContent=d; cell.appendChild(num);
-
-    if(shift) {
-      const lbl=document.createElement('span');
-      lbl.className='sched-label '+(shift==='mañana'?'morning':'afternoon');
-      lbl.textContent=shift==='mañana'?'M':'T'; cell.appendChild(lbl);
-    }
-
-    cell.addEventListener('click',()=>{
-      const cur=shiftMap.get(ds);
-      if(!cur)            shiftMap.set(ds,'mañana');
-      else if(cur==='mañana') shiftMap.set(ds,'tarde');
-      else                shiftMap.delete(ds);
-      saveShifts(); renderSchedCalendar(); render();
-    });
+    const num=document.createElement('span'); num.className='sched-num'+(shift==='mañana'?' morning':shift==='tarde'?' afternoon':isToday?' today':''); num.textContent=d; cell.appendChild(num);
+    if(shift){const lbl=document.createElement('span');lbl.className='sched-lbl '+(shift==='mañana'?'morning':'afternoon');lbl.textContent=shift==='mañana'?'M':'T';cell.appendChild(lbl);}
     grid.appendChild(cell);
   }
 }
 
-/* ════════════════════════════════
-   DATA EXPORT / IMPORT
-════════════════════════════════ */
-function exportData() {
-  const data={tips,settings,shifts:Object.fromEntries(shiftMap),exportedAt:new Date().toISOString()};
-  const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
-  const a=Object.assign(document.createElement('a'),{href:url,download:`propinas-backup-${new Date().toISOString().slice(0,10)}.json`});
-  a.click(); URL.revokeObjectURL(url);
+function showEmpTab(tab) {
+  ['tips','schedule','settings'].forEach(t=>{document.getElementById('emp-tab-'+t).classList.toggle('active',t===tab);document.getElementById('emp-nav-'+t).classList.toggle('active',t===tab);});
+  document.getElementById('emp-fab').classList.toggle('hidden',tab!=='tips');
+  if(tab==='schedule'){schedYear=viewYear;schedMonth=viewMonth;renderSchedCalendar();}
 }
-function importData(event) {
+
+/* ══════════════════════════════════════════════════
+   EMPLOYEE — PDF (uploaded by owner)
+   ══════════════════════════════════════════════════ */
+async function loadSchedulePDFForEmployee() {
+  if (!cafe) return;
+  const { data } = await db.storage.from('schedules').list(cafe.id+'/');
+  if (!data || !data.length) { document.getElementById('emp-no-pdf').style.display='block'; return; }
+  const latest = data.sort((a,b)=>b.created_at.localeCompare(a.created_at))[0];
+  const { data: url } = db.storage.from('schedules').getPublicUrl(cafe.id+'/'+latest.name);
+  // Actually use signed URL for private bucket
+  const { data: signedUrl } = await db.storage.from('schedules').createSignedUrl(cafe.id+'/'+latest.name, 3600);
+  if (signedUrl) {
+    document.getElementById('emp-no-pdf').style.display='none';
+    document.getElementById('emp-pdf-section').style.display='block';
+    document.getElementById('emp-pdf-name').textContent=latest.name;
+    await renderPDFUrl(signedUrl.signedUrl, 'pdf-pages', 'pdf-loading');
+  }
+}
+async function reloadSchedulePDF() { await loadSchedulePDFForEmployee(); }
+
+/* ══════════════════════════════════════════════════
+   OWNER BOOT
+   ══════════════════════════════════════════════════ */
+async function bootOwner() {
+  document.getElementById('owner-cafe-name').textContent = cafe?.name || 'Café';
+  document.getElementById('owner-byline').textContent    = profile?.name || '';
+  document.getElementById('owner-invite-code').textContent = cafe?.invite_code || '——';
+  await loadOwnerData();
+  renderOwnerTeam();
+  renderOwnerSummary();
+  populateEmpSelector();
+  renderOwnerShiftCal();
+  loadOwnerPDFSection();
+  showView('owner');
+}
+
+async function loadOwnerData() {
+  // Load employees
+  const { data: emps } = await db.from('profiles').select('id,name').eq('cafe_id', cafe.id).neq('id', currentUser.id);
+  employees = emps || [];
+  // Load all tips for the café
+  const { data: tipsData } = await db.from('tips').select('*').eq('cafe_id', cafe.id);
+  ownerTipsData = tipsData || [];
+  // Load all shifts for the café
+  const { data: shiftsData } = await db.from('shifts').select('*').eq('cafe_id', cafe.id);
+  allShifts = new Map();
+  (shiftsData||[]).forEach(s => allShifts.set(`${s.employee_id}:${s.date}`, s.type));
+}
+
+function changeOwnerMonth(dir) {
+  ownerViewMonth+=dir; if(ownerViewMonth<0){ownerViewMonth=11;ownerViewYear--;} if(ownerViewMonth>11){ownerViewMonth=0;ownerViewYear++;}
+  renderOwnerTeam(); renderOwnerSummary();
+  document.getElementById('sum-month-label').textContent=MONTHS[ownerViewMonth];
+  document.getElementById('sum-year-label').textContent=ownerViewYear;
+}
+function changeOwnerSchedMonth(dir){ownerSchedMonth+=dir;if(ownerSchedMonth<0){ownerSchedMonth=11;ownerSchedYear--;}if(ownerSchedMonth>11){ownerSchedMonth=0;ownerSchedYear++;}renderOwnerShiftCal();}
+
+function renderOwnerTeam() {
+  document.getElementById('owner-month-label').textContent = MONTHS[ownerViewMonth];
+  document.getElementById('owner-year-label').textContent  = ownerViewYear;
+  const ms = `${ownerViewYear}-${String(ownerViewMonth+1).padStart(2,'0')}`;
+  const monthTips = ownerTipsData.filter(t=>t.date.startsWith(ms));
+  const cafeTotal = monthTips.reduce((s,t)=>s+t.my_share,0);
+  document.getElementById('own-stat-total').textContent = fmt(cafeTotal);
+  document.getElementById('own-stat-days').textContent  = monthTips.length+' entradas';
+  document.getElementById('own-stat-emps').textContent  = employees.length;
+  document.getElementById('own-stat-avg').textContent   = employees.length&&cafeTotal ? fmt(Math.round(cafeTotal/employees.length)) : '—';
+  const list = document.getElementById('owner-team-list');
+  if (!employees.length) { list.innerHTML='<div class="no-team">Todavía no hay empleados.<br>Compartí el código de invitación.</div>'; return; }
+  list.innerHTML = employees.map(emp => {
+    const empTips = monthTips.filter(t=>t.employee_id===emp.id);
+    const empTotal = empTips.reduce((s,t)=>s+t.my_share,0);
+    const empAvg   = empTips.length ? Math.round(empTotal/empTips.length) : 0;
+    const initials = (emp.name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    return `<div class="emp-card">
+      <div class="emp-card-name"><div class="emp-avatar">${initials}</div>${emp.name||'Sin nombre'}</div>
+      <div class="emp-stats">
+        <div class="emp-stat">Días<strong>${empTips.length}</strong></div>
+        <div class="emp-stat">Total<strong>${fmt(empTotal)}</strong></div>
+        <div class="emp-stat">Promedio/día<strong>${empTips.length?fmt(empAvg):'—'}</strong></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderOwnerSummary() {
+  document.getElementById('sum-month-label').textContent = MONTHS[ownerViewMonth];
+  document.getElementById('sum-year-label').textContent  = ownerViewYear;
+  const ms = `${ownerViewYear}-${String(ownerViewMonth+1).padStart(2,'0')}`;
+  const mt = ownerTipsData.filter(t=>t.date.startsWith(ms));
+  if (!employees.length || !mt.length) {
+    document.getElementById('owner-summary-table').innerHTML = '<p style="text-align:center;padding:20px;color:#5a4a30;font-size:12px;">Sin datos para este mes.</p>';
+    return;
+  }
+  const cafeTotal = mt.reduce((s,t)=>s+t.my_share,0);
+  let rows = employees.map(emp => {
+    const et=mt.filter(t=>t.employee_id===emp.id); const et2=et.reduce((s,t)=>s+t.my_share,0);
+    return `<tr><td>${emp.name||'—'}</td><td style="text-align:center;">${et.length}</td><td class="amt">${fmt(et2)}</td></tr>`;
+  }).join('');
+  document.getElementById('owner-summary-table').innerHTML = `<table class="summary-table"><thead><tr><th>Empleado</th><th style="text-align:center;">Días</th><th style="text-align:right;">Total</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td>TOTAL CAFÉ</td><td></td><td class="amt">${fmt(cafeTotal)}</td></tr></tfoot></table>`;
+}
+
+function showOwnerTab(tab) {
+  ['team','schedule','summary'].forEach(t=>{document.getElementById('own-tab-'+t).classList.toggle('active',t===tab);document.getElementById('own-nav-'+t).classList.toggle('active',t===tab);});
+  if(tab==='summary') renderOwnerSummary();
+}
+
+function copyInvite() {
+  const code = cafe?.invite_code || '';
+  navigator.clipboard?.writeText(code).then(()=>{const btn=document.querySelector('.copy-btn');btn.textContent='✓ Copiado!';setTimeout(()=>{btn.textContent='Copiar código';},1800);});
+}
+
+/* ══════════════════════════════════════════════════
+   OWNER — SHIFT MANAGEMENT
+   ══════════════════════════════════════════════════ */
+function populateEmpSelector() {
+  const sel = document.getElementById('shift-emp-select');
+  sel.innerHTML = '<option value="">Seleccioná un empleado</option>' + employees.map(e=>`<option value="${e.id}">${e.name||'Sin nombre'}</option>`).join('');
+}
+
+function renderOwnerShiftCal() {
+  document.getElementById('own-sched-month-label').textContent = MONTHS[ownerSchedMonth];
+  document.getElementById('own-sched-year-label').textContent  = ownerSchedYear;
+  const empId = document.getElementById('shift-emp-select').value;
+  const grid  = document.getElementById('owner-sched-grid'); grid.innerHTML='';
+  const td    = todayStr();
+  for(let i=0;i<firstDay(ownerSchedYear,ownerSchedMonth);i++) grid.appendChild(document.createElement('div'));
+  for(let d=1;d<=daysIn(ownerSchedYear,ownerSchedMonth);d++){
+    const ds    = dateStr(ownerSchedYear,ownerSchedMonth,d);
+    const shift = empId ? allShifts.get(`${empId}:${ds}`) : undefined;
+    const isToday = ds===td;
+    const cell  = document.createElement('div');
+    cell.className='sched-cell owner-edit'+(shift==='mañana'?' morning':shift==='tarde'?' afternoon':'')+(isToday?' is-today':'');
+    const num   = document.createElement('span'); num.className='sched-num'+(shift==='mañana'?' morning':shift==='tarde'?' afternoon':isToday?' today':''); num.textContent=d; cell.appendChild(num);
+    if(shift){const lbl=document.createElement('span');lbl.className='sched-lbl '+(shift==='mañana'?'morning':'afternoon');lbl.textContent=shift==='mañana'?'M':'T';cell.appendChild(lbl);}
+    if(empId) cell.addEventListener('click',()=>toggleOwnerShift(empId,ds));
+    grid.appendChild(cell);
+  }
+}
+
+async function toggleOwnerShift(empId, ds) {
+  const key=`${empId}:${ds}`, cur=allShifts.get(key);
+  let next;
+  if(!cur) next='mañana'; else if(cur==='mañana') next='tarde'; else next=null;
+  if(next) { allShifts.set(key,next); await db.from('shifts').upsert({cafe_id:cafe.id,employee_id:empId,date:ds,type:next},{onConflict:'employee_id,date'}); }
+  else     { allShifts.delete(key); await db.from('shifts').delete().eq('employee_id',empId).eq('date',ds); }
+  renderOwnerShiftCal();
+}
+
+/* ══════════════════════════════════════════════════
+   OWNER — PDF upload
+   ══════════════════════════════════════════════════ */
+async function ownerUploadPDF(event) {
   const file=event.target.files[0]; if(!file) return;
-  const reader=new FileReader();
-  reader.onload=e=>{
-    try {
-      const data=JSON.parse(e.target.result);
-      if(!data.tips||!Array.isArray(data.tips)){alert('Archivo no válido.');return;}
-      tips=data.tips; buildMap(); saveTips();
-      if(data.shifts){shiftMap=new Map(Object.entries(data.shifts));saveShifts();}
-      if(data.settings){settings={...settings,...data.settings};localStorage.setItem('propinas-settings',JSON.stringify(settings));document.getElementById('settings-name').value=settings.workerName||'';document.getElementById('settings-split').value=settings.splitCount;applySettings();}
-      render(); alert('Datos importados correctamente.');
-    } catch {alert('Error al leer el archivo.');}
-  };
-  reader.readAsText(file); event.target.value='';
+  const path=`${cafe.id}/${file.name}`;
+  await db.storage.from('schedules').upload(path, file, { upsert: true });
+  event.target.value='';
+  loadOwnerPDFSection();
+}
+async function ownerDeletePDF() {
+  const { data } = await db.storage.from('schedules').list(cafe.id+'/');
+  if(data?.length) { await db.storage.from('schedules').remove(data.map(f=>cafe.id+'/'+f.name)); }
+  document.getElementById('own-pdf-section').style.display='none';
+  document.getElementById('own-upload-area').style.display='block';
+  document.getElementById('own-pdf-pages').innerHTML='';
+}
+async function loadOwnerPDFSection() {
+  const { data } = await db.storage.from('schedules').list(cafe.id+'/');
+  if(!data||!data.length){ document.getElementById('own-upload-area').style.display='block'; document.getElementById('own-pdf-section').style.display='none'; return; }
+  const latest=data.sort((a,b)=>b.created_at.localeCompare(a.created_at))[0];
+  const { data: su } = await db.storage.from('schedules').createSignedUrl(cafe.id+'/'+latest.name,3600);
+  if(su){ document.getElementById('own-upload-area').style.display='none'; document.getElementById('own-pdf-section').style.display='block'; document.getElementById('own-pdf-name').textContent=latest.name; await renderPDFUrl(su.signedUrl,'own-pdf-pages','own-pdf-loading'); }
 }
 
-/* ════════════════════════════════
-   INDEXEDDB
-════════════════════════════════ */
-function openIDB(){return new Promise((res,rej)=>{const req=indexedDB.open('propinas-files',1);req.onupgradeneeded=e=>e.target.result.createObjectStore('store');req.onsuccess=e=>res(e.target.result);req.onerror=rej;});}
-async function idbGet(k){const db=await openIDB();return new Promise((res,rej)=>{const req=db.transaction('store').objectStore('store').get(k);req.onsuccess=e=>res(e.target.result);req.onerror=rej;});}
-async function idbSet(k,v){const db=await openIDB();return new Promise((res,rej)=>{const tx=db.transaction('store','readwrite');tx.objectStore('store').put(v,k);tx.oncomplete=res;tx.onerror=rej;});}
-async function idbDel(k){const db=await openIDB();return new Promise((res,rej)=>{const tx=db.transaction('store','readwrite');tx.objectStore('store').delete(k);tx.oncomplete=res;tx.onerror=rej;});}
-
-/* ════════════════════════════════
+/* ══════════════════════════════════════════════════
    PDF.js
-════════════════════════════════ */
+   ══════════════════════════════════════════════════ */
 const PDFJS_URL='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
 const PDFJS_WRK='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 let pdfJsReady=false;
 function loadPdfJs(){if(pdfJsReady)return Promise.resolve();return new Promise((res,rej)=>{const s=document.createElement('script');s.src=PDFJS_URL;s.onload=()=>{window.pdfjsLib.GlobalWorkerOptions.workerSrc=PDFJS_WRK;pdfJsReady=true;res();};s.onerror=rej;document.head.appendChild(s);});}
-async function renderPDFBuffer(buf){
+async function renderPDFUrl(url, pagesId, loadId) {
   await loadPdfJs();
-  const pages=document.getElementById('pdf-pages'), load=document.getElementById('pdf-loading');
-  pages.innerHTML=''; load.style.display='block';
-  try{
-    const doc=await pdfjsLib.getDocument({data:buf}).promise; load.style.display='none';
-    const mw=(document.getElementById('pdf-pages').parentElement.clientWidth-32)||320;
-    for(let i=1;i<=doc.numPages;i++){
-      const page=await doc.getPage(i);
-      const vp=page.getViewport({scale:mw/page.getViewport({scale:1}).width});
-      const cv=document.createElement('canvas'); cv.width=vp.width; cv.height=vp.height;
-      cv.style.cssText='width:100%;display:block;margin-bottom:4px;';
-      pages.appendChild(cv); await page.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
-    }
-  }catch{load.textContent='No se pudo renderizar el PDF.';}
-}
-async function handlePDFUpload(event){const f=event.target.files[0];if(!f)return;await idbSet('schedule-pdf',{buffer:await f.arrayBuffer(),name:f.name});event.target.value='';loadPDFPreview();}
-async function deletePDF(){await idbDel('schedule-pdf');document.getElementById('pdf-section').style.display='none';document.getElementById('upload-area').style.display='block';document.getElementById('pdf-pages').innerHTML='';}
-async function loadPDFPreview(){
-  const data=await idbGet('schedule-pdf');
-  if(!data){document.getElementById('pdf-section').style.display='none';document.getElementById('upload-area').style.display='block';return;}
-  document.getElementById('upload-area').style.display='none';
-  document.getElementById('pdf-section').style.display='block';
-  document.getElementById('pdf-name-label').textContent=data.name||'Horario.pdf';
-  renderPDFBuffer(data.buffer);
+  const pages=document.getElementById(pagesId), load=document.getElementById(loadId);
+  pages.innerHTML=''; if(load) load.style.display='block';
+  try {
+    const doc=await pdfjsLib.getDocument(url).promise; if(load)load.style.display='none';
+    const mw=(pages.parentElement?.clientWidth-32)||320;
+    for(let i=1;i<=doc.numPages;i++){const page=await doc.getPage(i);const vp=page.getViewport({scale:mw/page.getViewport({scale:1}).width});const cv=document.createElement('canvas');cv.width=vp.width;cv.height=vp.height;cv.style.cssText='width:100%;display:block;margin-bottom:4px;';pages.appendChild(cv);await page.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;}
+  } catch(e) { if(load)load.textContent='No se pudo cargar el PDF.'; }
 }
 
-/* ════════════════════════════════
-   EXPORT TXT
-════════════════════════════════ */
+/* ══════════════════════════════════════════════════
+   EXPORT FUNCTIONS (employee)
+   ══════════════════════════════════════════════════ */
 function exportTXT() {
-  if (!tips.length) { alert('No hay propinas registradas.'); return; }
-  const worker = settings.workerName || 'Trabajador';
-  const now    = new Date().toLocaleDateString('es-CL');
-  const SEP    = '════════════════════════════════';
-  const sep2   = '────────────────────────────────';
-  const lines  = [SEP, `  PROPINAS · CAFÉ`, `  ${worker}`, `  Exportado: ${now}`, SEP, ''];
-
-  const byMonth = {};
-  tips.forEach(t => {
-    const k = t.date.slice(0,7);
-    if (!byMonth[k]) byMonth[k] = [];
-    byMonth[k].push(t);
-  });
-
-  Object.keys(byMonth).sort().forEach(key => {
-    const [y, m] = key.split('-');
-    const mt = byMonth[key].sort((a,b) => a.date.localeCompare(b.date));
-    const total = mt.reduce((s,t) => s+t.myShare, 0);
-    lines.push(`  ${MONTHS[parseInt(m)-1].toUpperCase()} ${y}`);
-    lines.push('  ' + sep2);
-    mt.forEach(t => {
-      const shift   = shiftMap.get(t.date);
-      const shiftLbl= shift === 'mañana' ? 'Mañana' : shift === 'tarde' ? 'Tarde ' : '      ';
-      const dateLbl  = fmtShort(t.date).padEnd(12);
-      const note     = !isAutoNote(t.note) ? `  (${t.note})` : '';
-      lines.push(`  ${dateLbl}  ${shiftLbl}  ${fmt(t.myShare)}${note}`);
-    });
-    lines.push('  ' + sep2);
-    lines.push(`  TOTAL: ${fmt(total)}  ·  ${mt.length} día${mt.length>1?'s':''}`);
-    lines.push('');
-  });
-
-  const allTotal = tips.reduce((s,t) => s+t.myShare, 0);
-  lines.push(SEP);
-  lines.push(`  TOTAL ACUMULADO : ${fmt(allTotal)}`);
-  lines.push(`  DÍAS TRABAJADOS : ${tips.length}`);
-  if (tips.length) lines.push(`  PROMEDIO / DÍA  : ${fmt(Math.round(allTotal/tips.length))}`);
-  lines.push(SEP);
-
-  const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
-  const url  = URL.createObjectURL(blob);
-  Object.assign(document.createElement('a'), { href: url, download: `propinas-${new Date().toISOString().slice(0,10)}.txt` }).click();
-  URL.revokeObjectURL(url);
+  if(!tips.length){alert('No hay propinas registradas.');return;}
+  const worker=profile?.name||'Trabajador', now=new Date().toLocaleDateString('es-CL');
+  const SEP='════════════════════════════════', sep='────────────────────────────────';
+  const lines=[SEP,`  PROPINAS · ${cafe?.name||'CAFÉ'}`,`  ${worker}`,`  Exportado: ${now}`,SEP,''];
+  const byM={};tips.forEach(t=>{const k=t.date.slice(0,7);if(!byM[k])byM[k]=[];byM[k].push(t);});
+  Object.keys(byM).sort().forEach(key=>{const[y,m]=key.split('-');const mt=byM[key].sort((a,b)=>a.date.localeCompare(b.date));const total=mt.reduce((s,t)=>s+t.myShare,0);lines.push(`  ${MONTHS[parseInt(m)-1].toUpperCase()} ${y}`);lines.push('  '+sep);mt.forEach(t=>{const s=shiftMap.get(t.date);const sl=s==='mañana'?'Mañana':s==='tarde'?'Tarde ':'      ';const note=!isAuto(t.note)?`  (${t.note})`:'';lines.push(`  ${fmtShort(t.date).padEnd(12)}  ${sl}  ${fmt(t.myShare)}${note}`);});lines.push('  '+sep);lines.push(`  TOTAL: ${fmt(total)}  ·  ${mt.length} días`);lines.push('');});
+  const aT=tips.reduce((s,t)=>s+t.myShare,0);lines.push(SEP);lines.push(`  TOTAL ACUMULADO : ${fmt(aT)}`);lines.push(`  DÍAS TRABAJADOS : ${tips.length}`);if(tips.length)lines.push(`  PROMEDIO / DÍA  : ${fmt(Math.round(aT/tips.length))}`);lines.push(SEP);
+  dl(new Blob([lines.join('\n')],{type:'text/plain;charset=utf-8'}),`propinas-${new Date().toISOString().slice(0,10)}.txt`);
+}
+function exportDOC() { _exportDOC(tips, shiftMap, profile?.name, cafe?.name); }
+function exportJSON() {
+  dl(new Blob([JSON.stringify({tips,shifts:Object.fromEntries(shiftMap),exportedAt:new Date().toISOString()},null,2)],{type:'application/json'}),`propinas-backup-${new Date().toISOString().slice(0,10)}.json`);
+}
+function importJSON(event) {
+  const f=event.target.files[0]; if(!f) return;
+  const r=new FileReader(); r.onload=async e=>{try{const d=JSON.parse(e.target.result);if(!d.tips)return;tips=d.tips;buildMap();localStorage.setItem('propinas-cafe-v2',JSON.stringify(tips));if(d.shifts)shiftMap=new Map(Object.entries(d.shifts));render();alert('Importado.');}catch{alert('Archivo inválido.');}};r.readAsText(f);event.target.value='';
 }
 
-/* ════════════════════════════════
-   EXPORT DOC (HTML-as-Word)
-════════════════════════════════ */
-function exportDOC() {
-  if (!tips.length) { alert('No hay propinas registradas.'); return; }
-  const worker = settings.workerName || 'Trabajador';
-  const now    = new Date().toLocaleDateString('es-CL');
-
-  const byMonth = {};
-  tips.forEach(t => { const k=t.date.slice(0,7); if(!byMonth[k]) byMonth[k]=[]; byMonth[k].push(t); });
-
-  let tbody = '';
-  Object.keys(byMonth).sort().forEach(key => {
-    const [y, m] = key.split('-');
-    const mt    = byMonth[key].sort((a,b) => a.date.localeCompare(b.date));
-    const total = mt.reduce((s,t) => s+t.myShare, 0);
-
-    tbody += `<tr><td colspan="4" style="background:#2d1f0a;color:#f5d78e;font-weight:bold;
-      padding:10px 12px;font-size:13pt;border-top:3px solid #c8922a;">
-      ${MONTHS[parseInt(m)-1]} ${y}</td></tr>`;
-
-    mt.forEach(t => {
-      const shift = shiftMap.get(t.date);
-      const shiftTxt   = shift==='mañana'?'Mañana':shift==='tarde'?'Tarde':'—';
-      const shiftColor = shift==='mañana'?'#2a7a20':shift==='tarde'?'#a05030':'#aaa';
-      const note = !isAutoNote(t.note) ? t.note : '';
-      tbody += `<tr>
-        <td style="padding:7px 12px;">${fmtDate(t.date)}</td>
-        <td style="padding:7px 12px;color:${shiftColor};font-weight:bold;">${shiftTxt}</td>
-        <td style="padding:7px 12px;color:#888;font-size:9pt;">${note}</td>
-        <td style="padding:7px 12px;text-align:right;font-weight:bold;color:#1a5a10;">${fmt(t.myShare)}</td>
-      </tr>`;
-    });
-    tbody += `<tr style="border-top:1px solid #c8922a;">
-      <td colspan="3" style="padding:7px 12px;font-weight:bold;color:#c8922a;">Total ${MONTHS[parseInt(m)-1]}</td>
-      <td style="padding:7px 12px;text-align:right;font-weight:bold;color:#c8922a;">${fmt(total)}</td>
-    </tr><tr><td colspan="4" style="height:6px;"></td></tr>`;
-  });
-
-  const allTotal = tips.reduce((s,t) => s+t.myShare, 0);
-  const avg      = tips.length ? Math.round(allTotal/tips.length) : 0;
-
-  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office"
-    xmlns:w="urn:schemas-microsoft-com:office:word"
-    xmlns="http://www.w3.org/TR/REC-html40">
-<head><meta charset="utf-8"><style>
-  body  { font-family: Calibri, Arial, sans-serif; font-size: 11pt; color: #222; margin: 48px; }
-  h1    { color: #c8922a; font-size: 22pt; margin-bottom: 2px; }
-  .sub  { color: #999; font-size: 10pt; margin-bottom: 32px; }
-  table { border-collapse: collapse; width: 100%; }
-  th    { background: #1a1208; color: #f5d78e; padding: 9px 12px; text-align: left; font-size: 10pt; }
-  td    { border-bottom: 1px solid #ececec; font-size: 10.5pt; }
-  .summ { margin-top: 28px; padding: 14px 18px; background: #fafafa; border: 1px solid #ddd; border-radius: 4px; }
-  .summ-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 11pt; }
-</style></head>
-<body>
-<h1>Propinas · Café</h1>
-<div class="sub">${worker} &nbsp;·&nbsp; Exportado el ${now}</div>
-<table>
-  <thead><tr>
-    <th>Fecha</th><th>Turno</th><th>Nota</th><th style="text-align:right;">Propina</th>
-  </tr></thead>
-  <tbody>${tbody}</tbody>
-</table>
-<div class="summ">
-  <div class="summ-row"><strong>Total acumulado</strong><strong style="color:#1a5a10;">${fmt(allTotal)}</strong></div>
-  <div class="summ-row"><span>Días trabajados</span><span><b>${tips.length}</b></span></div>
-  <div class="summ-row"><span>Promedio por día</span><span><b>${fmt(avg)}</b></span></div>
-</div>
-</body></html>`;
-
-  const blob = new Blob([html], { type: 'application/msword' });
-  const url  = URL.createObjectURL(blob);
-  Object.assign(document.createElement('a'), { href: url, download: `propinas-${new Date().toISOString().slice(0,10)}.doc` }).click();
-  URL.revokeObjectURL(url);
+/* ══════════════════════════════════════════════════
+   EXPORT (owner — full café report)
+   ══════════════════════════════════════════════════ */
+function exportOwnerTXT() {
+  const ms=`${ownerViewYear}-${String(ownerViewMonth+1).padStart(2,'0')}`, mt=ownerTipsData.filter(t=>t.date.startsWith(ms));
+  const SEP='════════════════════════════════', sep='────────────────────────────────';
+  const lines=[SEP,`  PROPINAS · ${cafe?.name||'CAFÉ'}`,`  ${MONTHS[ownerViewMonth]} ${ownerViewYear}`,SEP,''];
+  employees.forEach(emp=>{const et=mt.filter(t=>t.employee_id===emp.id).sort((a,b)=>a.date.localeCompare(b.date));const tot=et.reduce((s,t)=>s+t.my_share,0);lines.push(`  ${emp.name||'Empleado'}`);lines.push('  '+sep);et.forEach(t=>{const s=allShifts.get(`${emp.id}:${t.date}`);const sl=s==='mañana'?'Mañana':s==='tarde'?'Tarde ':'      ';lines.push(`  ${fmtShort(t.date).padEnd(12)}  ${sl}  ${fmt(t.my_share)}`);});lines.push(`  TOTAL: ${fmt(tot)}  ·  ${et.length} días`);lines.push('');});
+  const ct=mt.reduce((s,t)=>s+t.my_share,0);lines.push(SEP);lines.push(`  TOTAL CAFÉ: ${fmt(ct)}`);lines.push(SEP);
+  dl(new Blob([lines.join('\n')],{type:'text/plain;charset=utf-8'}),`cafe-${MONTHS[ownerViewMonth].toLowerCase()}-${ownerViewYear}.txt`);
 }
+function exportOwnerDOC() {
+  const ms=`${ownerViewYear}-${String(ownerViewMonth+1).padStart(2,'0')}`, mt=ownerTipsData.filter(t=>t.date.startsWith(ms));
+  let tbody='';
+  employees.forEach(emp=>{const et=mt.filter(t=>t.employee_id===emp.id).sort((a,b)=>a.date.localeCompare(b.date));const tot=et.reduce((s,t)=>s+t.my_share,0);tbody+=`<tr><td colspan="3" style="background:#2d1f0a;color:#f5d78e;font-weight:bold;padding:10px 12px;border-top:3px solid #c8922a;">${emp.name||'Empleado'}</td></tr>`;et.forEach(t=>{const s=allShifts.get(`${emp.id}:${t.date}`);const sc=s==='mañana'?'#2a7a20':s==='tarde'?'#a05030':'#aaa';const sl=s==='mañana'?'Mañana':s==='tarde'?'Tarde':'—';tbody+=`<tr><td style="padding:7px 12px;">${fmtDate(t.date)}</td><td style="padding:7px 12px;color:${sc};font-weight:bold;">${sl}</td><td style="padding:7px 12px;text-align:right;font-weight:bold;color:#1a5a10;">${fmt(t.my_share)}</td></tr>`;});tbody+=`<tr><td colspan="2" style="padding:7px 12px;font-weight:bold;color:#c8922a;">Total ${emp.name||''}</td><td style="padding:7px 12px;text-align:right;font-weight:bold;color:#c8922a;">${fmt(tot)}</td></tr>`;});
+  const ct=mt.reduce((s,t)=>s+t.my_share,0);
+  const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><style>body{font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#222;margin:48px;}h1{color:#c8922a;font-size:20pt;margin-bottom:2px;}.sub{color:#999;font-size:10pt;margin-bottom:30px;}table{border-collapse:collapse;width:100%;}th{background:#1a1208;color:#f5d78e;padding:9px 12px;text-align:left;font-size:10pt;}td{border-bottom:1px solid #ececec;font-size:10.5pt;}</style></head><body><h1>${cafe?.name||'Café'}</h1><div class="sub">${MONTHS[ownerViewMonth]} ${ownerViewYear} · Exportado ${new Date().toLocaleDateString('es-CL')}</div><table><thead><tr><th>Fecha</th><th>Turno</th><th style="text-align:right;">Propina</th></tr></thead><tbody>${tbody}</tbody></table><p style="margin-top:20px;font-weight:bold;font-size:13pt;">TOTAL CAFÉ: ${fmt(ct)}</p></body></html>`;
+  dl(new Blob([html],{type:'application/msword'}),`cafe-${MONTHS[ownerViewMonth].toLowerCase()}-${ownerViewYear}.doc`);
+}
+function _exportDOC(tipsArr, sMap, workerName, cafeName) {
+  if(!tipsArr.length){alert('No hay propinas.');return;}
+  const byM={};tipsArr.forEach(t=>{const k=t.date.slice(0,7);if(!byM[k])byM[k]=[];byM[k].push(t);});
+  let tbody='';
+  Object.keys(byM).sort().forEach(key=>{const[y,m]=key.split('-');const mt=byM[key].sort((a,b)=>a.date.localeCompare(b.date));const tot=mt.reduce((s,t)=>s+(t.myShare||t.my_share||0),0);tbody+=`<tr><td colspan="4" style="background:#2d1f0a;color:#f5d78e;font-weight:bold;padding:10px 12px;border-top:3px solid #c8922a;">${MONTHS[parseInt(m)-1]} ${y}</td></tr>`;mt.forEach(t=>{const s=sMap?.get(t.date);const sc=s==='mañana'?'#2a7a20':s==='tarde'?'#a05030':'#aaa';const sl=s==='mañana'?'Mañana':s==='tarde'?'Tarde':'—';tbody+=`<tr><td style="padding:7px 12px;">${fmtDate(t.date)}</td><td style="padding:7px 12px;color:${sc};font-weight:bold;">${sl}</td><td style="padding:7px 12px;color:#888;font-size:9pt;">${!isAuto(t.note)?t.note:''}</td><td style="padding:7px 12px;text-align:right;font-weight:bold;color:#1a5a10;">${fmt(t.myShare||t.my_share)}</td></tr>`;});tbody+=`<tr><td colspan="3" style="padding:7px 12px;font-weight:bold;color:#c8922a;">Total ${MONTHS[parseInt(m)-1]}</td><td style="padding:7px 12px;text-align:right;font-weight:bold;color:#c8922a;">${fmt(tot)}</td></tr>`;});
+  const aT=tipsArr.reduce((s,t)=>s+(t.myShare||t.my_share||0),0);
+  const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><style>body{font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#222;margin:48px;}h1{color:#c8922a;font-size:22pt;margin-bottom:2px;}.sub{color:#999;font-size:10pt;margin-bottom:32px;}table{border-collapse:collapse;width:100%;}th{background:#1a1208;color:#f5d78e;padding:9px 12px;text-align:left;font-size:10pt;}td{border-bottom:1px solid #ececec;font-size:10.5pt;}.summ{margin-top:28px;padding:14px 18px;background:#fafafa;border:1px solid #ddd;}.summ-row{display:flex;justify-content:space-between;padding:5px 0;}</style></head><body><h1>Propinas · ${cafeName||'Café'}</h1><div class="sub">${workerName||''} · Exportado el ${new Date().toLocaleDateString('es-CL')}</div><table><thead><tr><th>Fecha</th><th>Turno</th><th>Nota</th><th style="text-align:right;">Propina</th></tr></thead><tbody>${tbody}</tbody></table><div class="summ"><div class="summ-row"><strong>Total acumulado</strong><strong style="color:#1a5a10;">${fmt(aT)}</strong></div><div class="summ-row"><span>Días trabajados</span><b>${tipsArr.length}</b></div>${tipsArr.length?`<div class="summ-row"><span>Promedio por día</span><b>${fmt(Math.round(aT/tipsArr.length))}</b></div>`:''}</div></body></html>`;
+  dl(new Blob([html],{type:'application/msword'}),`propinas-${new Date().toISOString().slice(0,10)}.doc`);
+}
+function dl(blob,name){const url=URL.createObjectURL(blob);Object.assign(document.createElement('a'),{href:url,download:name}).click();URL.revokeObjectURL(url);}
 
-/* ════════════════════════════════
+/* ══════════════════════════════════════════════════
    PWA INSTALL
-════════════════════════════════ */
+   ══════════════════════════════════════════════════ */
 let deferredPrompt=null;
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;if(!localStorage.getItem('pwa-dismissed'))document.getElementById('install-banner').classList.add('show');});
-function installApp(){if(!deferredPrompt)return;deferredPrompt.prompt();deferredPrompt.userChoice.then(()=>{deferredPrompt=null;dismissInstall();});}
+function installPWA(){if(!deferredPrompt)return;deferredPrompt.prompt();deferredPrompt.userChoice.then(()=>{deferredPrompt=null;dismissInstall();});}
 function dismissInstall(){document.getElementById('install-banner').classList.remove('show');localStorage.setItem('pwa-dismissed','1');}
 window.addEventListener('appinstalled',dismissInstall);
-if('serviceWorker'in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 
-/* ════════════════════════════════
+/* ══════════════════════════════════════════════════
    INIT
-════════════════════════════════ */
-tips=loadTips(); buildMap(); loadShifts(); loadSettings(); render();
+   ══════════════════════════════════════════════════ */
+initApp();
 </script>
 </body>
 </html>
