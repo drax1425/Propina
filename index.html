@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#c8922a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Propinas" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <title>Propinas ☕ · Café</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0f0e0d; font-family: 'Georgia','Times New Roman',serif;
+      color: #f0ead6; min-height: 100vh;
+      padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+    }
+    input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+    input, button { font-family: inherit; }
+
+    /* ── Header ── */
+    #header {
+      background: linear-gradient(135deg,#1a1208,#2d1f0a);
+      border-bottom: 2px solid #c8922a; padding: 14px 20px 10px; text-align: center;
+    }
+    #header .sub    { font-size: 11px; letter-spacing: 4px; color: #c8922a; text-transform: uppercase; margin-bottom: 3px; }
+    #header h1      { font-size: 26px; color: #f5d78e; letter-spacing: 1px; font-weight: bold; }
+    #header .byline { font-size: 11px; color: #8a7a5a; margin-top: 2px; }
+
+    /* ── Stats ── */
+    #stats { display: flex; background: #1a1208; border-bottom: 1px solid #3a2e10; padding: 10px 8px; }
+    .stat  { text-align: center; flex: 1; }
+    .stat-label { font-size: 10px; color: #8a7a5a; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 2px; }
+    .stat-value { font-size: 15px; font-weight: bold; color: #f5d78e; }
+    .stat-sub   { font-size: 10px; color: #5a4a30; }
+    .stat-divider { width: 1px; background: #3a2e10; }
+
+    /* ── Legend ── */
+    #legend {
+      display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+      padding: 8px 16px; background: #120f08; border-bottom: 1px solid #1e1a0e;
+    }
+    .legend-item { display: flex; align-items: center; gap: 5px; font-size: 10px; color: #8a7a5a; }
+    .legend-swatch { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+    .ls-morning   { background: #0c2008; border: 1px solid #2a5a20; }
+    .ls-afternoon { background: #281408; border: 1px solid #7a4a20; }
+    .ls-tip       { background: #0f2a0a; border: 1px solid #3a7a2a; }
+
+    /* ── Bottom nav ── */
+    #bottom-nav {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: #1a1208; border-top: 1px solid #3a2e10;
+      display: flex; padding-bottom: env(safe-area-inset-bottom,0px); z-index: 95;
+    }
+    .nav-tab {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; padding: 9px 4px; background: transparent; border: none;
+      color: #5a4a30; font-family: inherit; font-size: 10px; letter-spacing: .5px;
+      cursor: pointer; gap: 3px; transition: color .15s;
+    }
+    .nav-tab.active { color: #c8922a; }
+    .nav-tab-icon { font-size: 19px; line-height: 1; }
+
+    /* ── FAB ── */
+    #fab {
+      position: fixed;
+      bottom: calc(64px + env(safe-area-inset-bottom,0px) + 14px); right: 20px;
+      background: linear-gradient(135deg,#c8922a,#a06b10); border: none;
+      border-radius: 50%; width: 52px; height: 52px; font-size: 28px;
+      color: #0f0e0d; cursor: pointer; line-height: 1;
+      box-shadow: 0 4px 16px rgba(200,146,42,.45); z-index: 90;
+      transition: opacity .2s, transform .2s;
+    }
+    #fab.hidden { opacity: 0; pointer-events: none; transform: scale(.8); }
+
+    /* ── Tabs ── */
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* ── Main calendar ── */
+    #cal-nav { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px 6px; }
+    .nav-btn { background: #1a1208; border: 1px solid #3a2e10; border-radius: 8px; color: #f5d78e; font-size: 20px; width: 36px; height: 36px; cursor: pointer; }
+    #cal-nav .month-label { font-size: 16px; font-weight: bold; color: #f5d78e; text-align: center; }
+    #cal-nav .year-label  { font-size: 12px; color: #8a7a5a; text-align: center; }
+    .day-headers-row { display: grid; grid-template-columns: repeat(7,1fr); padding: 0 12px; gap: 2px; margin-bottom: 4px; }
+    .day-header { text-align: center; font-size: 10px; color: #8a7a5a; letter-spacing: 1px; padding: 4px 0; }
+    #cal-grid { display: grid; grid-template-columns: repeat(7,1fr); padding: 0 12px; gap: 4px; }
+
+    /* ── Calendar cells ── */
+    .cal-cell {
+      min-height: 58px; border-radius: 8px; padding: 5px 3px; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center;
+      transition: all .15s; border: 1px solid #2a2010; background: #161208;
+    }
+    /* Tip registered → bright green */
+    .cal-cell.has-tip      { background: linear-gradient(135deg,#0f2a0a,#0a1f07); border-color: #3a7a2a; }
+    /* Morning shift, no tip → dark green */
+    .cal-cell.has-morning  { background: linear-gradient(135deg,#0c2008,#081508); border-color: #2a5a20; }
+    /* Afternoon shift, no tip → skin tone */
+    .cal-cell.has-afternoon{ background: linear-gradient(135deg,#281408,#1a0e06); border-color: #7a4a20; }
+    /* Today */
+    .cal-cell.is-today     { border-color: #5a4a20; }
+
+    .day-num           { font-size: 12px; color: #a09070; }
+    .day-num.today     { color: #c8922a; font-weight: bold; }
+    .day-num.hastip    { color: #a8d8a0; }
+    .day-num.ismorning { color: #5ab050; }
+    .day-num.isafternoon{ color: #c8855a; }
+
+    .tip-bar       { width: 16px; height: 2px; background: #4a9a40; border-radius: 1px; margin-top: 3px; }
+    .morning-bar   { width: 16px; height: 2px; background: #3a7a30; border-radius: 1px; margin-top: 3px; }
+    .afternoon-bar { width: 16px; height: 2px; background: #8a5030; border-radius: 1px; margin-top: 3px; }
+
+    .tip-amt { font-size: 9px; color: #7ed870; font-weight: bold; margin-top: 2px; text-align: center; line-height: 1.2; }
+
+    /* Shift label inside tip cell */
+    .tip-shift-tag { font-size: 7px; letter-spacing: 0; margin-top: 1px; line-height: 1; }
+    .tip-shift-tag.m { color: #3a8a30; }
+    .tip-shift-tag.t { color: #a05030; }
+
+    /* ── Detail list ── */
+    #detail { padding: 14px 16px 0; }
+    .detail-title  { font-size: 10px; letter-spacing: 3px; color: #8a7a5a; text-transform: uppercase; margin-bottom: 10px; }
+    .detail-row    { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2a2010; padding: 8px 0; }
+    .detail-date   { font-size: 13px; color: #f0ead6; }
+    .detail-note   { font-size: 10px; color: #8a7a5a; margin-left: 6px; }
+    .detail-amount { font-size: 14px; color: #7ed870; font-weight: bold; text-align: right; }
+    .detail-sub    { font-size: 10px; color: #8a7a5a; text-align: right; }
+    .detail-footer { display: flex; justify-content: space-between; padding: 10px 0; }
+    .detail-footer .lbl { font-size: 12px; color: #c8922a; letter-spacing: 1px; }
+    .detail-footer .val { font-size: 15px; color: #f5d78e; font-weight: bold; }
+    .shift-pill {
+      display: inline-block; font-size: 9px; padding: 1px 6px; border-radius: 4px;
+      margin-left: 6px; vertical-align: middle; letter-spacing: 0;
+    }
+    .shift-pill.m { background: #0c2008; color: #5ab050; border: 1px solid #2a5a20; }
+    .shift-pill.t { background: #281408; color: #c8855a; border: 1px solid #7a4a20; }
+
+    #tab-tips-inner { padding-bottom: 88px; }
+
+    /* ── Schedule tab ── */
+    #tab-schedule-inner { padding: 16px 16px 88px; }
+    .tab-title { font-size: 10px; letter-spacing: 3px; color: #8a7a5a; text-transform: uppercase; margin-bottom: 14px; }
+
+    /* PDF */
+    .upload-area {
+      border: 2px dashed #3a2e10; border-radius: 14px; padding: 36px 20px;
+      text-align: center; cursor: pointer; transition: border-color .2s;
+    }
+    .upload-area:hover { border-color: #c8922a; }
+    .upload-icon { font-size: 44px; margin-bottom: 10px; }
+    .upload-text { font-size: 14px; color: #f5d78e; margin-bottom: 4px; }
+    .upload-sub  { font-size: 11px; color: #5a4a30; }
+    #pdf-input { display: none; }
+    .pdf-bar {
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;
+    }
+    .pdf-name { font-size: 12px; color: #8a7a5a; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pdf-action-btn {
+      background: transparent; border: 1px solid #3a2e10; border-radius: 7px;
+      color: #8a7a5a; padding: 5px 10px; font-size: 11px; cursor: pointer;
+      font-family: inherit; margin-left: 8px; white-space: nowrap;
+    }
+    .pdf-action-btn.danger { border-color: #5a3a20; color: #c85a20; }
+    #pdf-pages canvas { width: 100%; display: block; margin-bottom: 4px; border-radius: 6px; }
+    #pdf-pages     { background: #111; border-radius: 10px; overflow: hidden; margin-bottom: 4px; }
+    #pdf-loading   { text-align: center; padding: 24px; font-size: 12px; color: #8a7a5a; }
+
+    /* Schedule mark calendar */
+    .sched-section { margin-top: 20px; }
+    .sched-title   { font-size: 10px; letter-spacing: 3px; color: #c8922a; text-transform: uppercase; margin-bottom: 12px; }
+    #sched-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    #sched-nav .month-label { font-size: 15px; font-weight: bold; color: #f5d78e; text-align: center; }
+    #sched-nav .year-label  { font-size: 11px; color: #8a7a5a; text-align: center; }
+    #sched-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; }
+
+    .sched-cell {
+      min-height: 50px; border-radius: 7px; padding: 4px 2px; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      border: 1px solid #2a2010; background: #161208;
+      transition: all .12s; -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    .sched-cell.morning   { background: linear-gradient(135deg,#0c2008,#081508); border-color: #2a5a20; }
+    .sched-cell.afternoon { background: linear-gradient(135deg,#281408,#1a0e06); border-color: #7a4a20; }
+    .sched-cell.is-today  { border-width: 2px; }
+
+    .sched-num           { font-size: 13px; color: #a09070; }
+    .sched-num.morning   { color: #5ab050; font-weight: bold; }
+    .sched-num.afternoon { color: #c8855a; font-weight: bold; }
+    .sched-num.today     { color: #c8922a; }
+
+    .sched-label { font-size: 9px; margin-top: 2px; line-height: 1; font-weight: bold; letter-spacing: .5px; }
+    .sched-label.morning   { color: #3a8a30; }
+    .sched-label.afternoon { color: #a05030; }
+
+    /* Cycle hint strip */
+    .sched-cycle-hint {
+      display: flex; gap: 6px; justify-content: center; align-items: center;
+      margin: 10px 0 4px; font-size: 10px; color: #5a4a30;
+    }
+    .cycle-step {
+      display: flex; align-items: center; gap: 4px; padding: 4px 8px;
+      border-radius: 6px; border: 1px solid #2a2010; background: #161208;
+    }
+    .cycle-step .dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+    .dot-m { background: #1a4a10; border: 1px solid #2a5a20; }
+    .dot-t { background: #3a1808; border: 1px solid #7a4a20; }
+    .dot-x { background: #1a1208; border: 1px solid #2a2010; }
+    .cycle-arrow { color: #3a2e10; font-size: 12px; }
+
+    .sched-hint { font-size: 11px; color: #5a4a30; text-align: center; margin-top: 8px; }
+
+    /* ── Settings ── */
+    #tab-settings-inner { padding: 20px 16px 88px; }
+    .settings-section  { margin-bottom: 26px; }
+    .settings-title    { font-size: 10px; letter-spacing: 3px; color: #c8922a; text-transform: uppercase; }
+    .settings-sep      { height: 1px; background: #2a2010; margin: 10px 0 14px; }
+    .settings-row      { display: flex; justify-content: space-between; align-items: center; padding: 11px 0; border-bottom: 1px solid #2a2010; }
+    .settings-label    { font-size: 14px; color: #f0ead6; }
+    .settings-sublabel { font-size: 11px; color: #5a4a30; margin-top: 2px; }
+    .settings-input    { background: #0f0e0d; border: 1px solid #3a2e10; border-radius: 8px; color: #f0ead6; padding: 8px 12px; font-size: 15px; outline: none; text-align: center; width: 80px; font-family: inherit; }
+    .settings-input-wide { width: 160px; text-align: left; }
+    .settings-save-btn { width: 100%; background: linear-gradient(135deg,#c8922a,#a06b10); border: none; border-radius: 12px; color: #0f0e0d; font-weight: bold; padding: 13px; font-size: 14px; cursor: pointer; margin-top: 10px; font-family: inherit; }
+    .settings-version  { font-size: 11px; color: #3a2e10; text-align: center; margin-top: 24px; }
+    .btn-data { background: transparent; border: 1px solid #3a2e10; border-radius: 8px; color: #8a7a5a; padding: 6px 12px; font-size: 11px; cursor: pointer; font-family: inherit; white-space: nowrap; }
+
+    /* ── Modals ── */
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.75); display: none; z-index: 100; }
+    .overlay.show   { display: flex; }
+    .overlay.bottom { align-items: flex-end; justify-content: center; }
+    .overlay.middle { align-items: center; justify-content: center; padding: 20px; }
+    .sheet {
+      background: #1a1208; border-radius: 20px 20px 0 0; border: 1px solid #3a2e10; border-bottom: none;
+      width: 100%; max-width: 480px;
+      padding: 24px 20px calc(24px + env(safe-area-inset-bottom,0px));
+    }
+    .dialog { background: #1a1208; border-radius: 16px; border: 1px solid #3a2e10; width: 100%; max-width: 360px; padding: 24px 20px; }
+    .form-sublabel { font-size: 11px; letter-spacing: 3px; color: #8a7a5a; text-transform: uppercase; margin-bottom: 4px; }
+    .form-date  { font-size: 18px; color: #f5d78e; margin-bottom: 20px; font-weight: bold; }
+    .form-label { display: block; font-size: 10px; letter-spacing: 2px; color: #8a7a5a; text-transform: uppercase; margin-bottom: 6px; margin-top: 14px; }
+    .form-input { width: 100%; background: #0f0e0d; border: 1px solid #3a2e10; border-radius: 8px; color: #f0ead6; padding: 10px 12px; font-size: 15px; outline: none; font-family: inherit; }
+    .split-btns { display: flex; gap: 8px; }
+    .split-btn  { flex: 1; padding: 10px; border-radius: 8px; font-size: 13px; cursor: pointer; background: transparent; color: #8a7a5a; border: 1px solid #3a2e10; font-family: inherit; }
+    .split-btn.active { background: #c8922a; color: #0f0e0d; border: none; font-weight: bold; }
+    .preview-box { background: #0f1f0a; border: 1px solid #3a6a30; border-radius: 8px; padding: 10px 14px; margin-top: 10px; display: none; justify-content: space-between; align-items: center; }
+    .preview-box.show { display: flex; }
+    .preview-label  { font-size: 11px; color: #8a7a5a; letter-spacing: 1px; }
+    .preview-amount { font-size: 20px; color: #7ed870; font-weight: bold; }
+    .btn-row    { display: flex; gap: 10px; margin-top: 16px; }
+    .btn-cancel { flex: 1; background: transparent; border: 1px solid #3a2e10; border-radius: 10px; color: #8a7a5a; padding: 12px; cursor: pointer; font-size: 13px; font-family: inherit; }
+    .btn-delete { flex: 1; background: transparent; border: 1px solid #5a3a20; border-radius: 10px; color: #c85a20; padding: 12px; cursor: pointer; font-size: 13px; display: none; font-family: inherit; }
+    .btn-delete.show { display: block; }
+    .btn-save   { flex: 2; background: #2a2010; border: none; border-radius: 10px; color: #5a4a30; font-weight: bold; padding: 12px; cursor: not-allowed; font-size: 13px; font-family: inherit; }
+    .btn-save.ready { background: linear-gradient(135deg,#c8922a,#a06b10); color: #0f0e0d; cursor: pointer; }
+    .btn-edit   { flex: 2; background: linear-gradient(135deg,#c8922a,#a06b10); border: none; border-radius: 10px; color: #0f0e0d; font-weight: bold; padding: 12px; cursor: pointer; font-size: 13px; font-family: inherit; }
+    .confirm-tag    { font-size: 11px; letter-spacing: 3px; color: #c8922a; text-transform: uppercase; margin-bottom: 8px; }
+    .confirm-date   { font-size: 16px; color: #f5d78e; font-weight: bold; margin-bottom: 4px; }
+    .confirm-amount { font-size: 24px; color: #7ed870; font-weight: bold; margin: 12px 0; }
+    .confirm-q      { font-size: 12px; color: #8a7a5a; margin-bottom: 20px; }
+
+    /* ── Install banner ── */
+    #install-banner { display: none; background: #1a1208; border-bottom: 1px solid #c8922a; padding: 10px 16px; justify-content: space-between; align-items: center; }
+    #install-banner.show { display: flex; }
+    .install-text    { font-size: 12px; color: #f5d78e; }
+    .install-btn     { background: #c8922a; border: none; border-radius: 8px; color: #0f0e0d; font-weight: bold; padding: 6px 14px; font-size: 12px; cursor: pointer; font-family: inherit; }
+    .install-dismiss { background: transparent; border: none; color: #5a4a30; font-size: 18px; cursor: pointer; padding: 0 0 0 8px; }
+  </style>
+</head>
+<body>
+
+<!-- Install banner -->
+<div id="install-banner">
+  <span class="install-text">Instalá la app para acceso rápido</span>
+  <div style="display:flex;gap:8px;align-items:center;">
+    <button class="install-btn" onclick="installApp()">Instalar</button>
+    <button class="install-dismiss" onclick="dismissInstall()">✕</button>
+  </div>
+</div>
+
+<!-- Header -->
+<div id="header">
+  <div class="sub">Registro de</div>
+  <h1>Propinas ☕</h1>
+  <div class="byline" id="header-byline">Café</div>
+</div>
+
+<!-- Stats -->
+<div id="stats">
+  <div class="stat">
+    <div class="stat-label">Este mes</div>
+    <div class="stat-value" id="stat-month">$0</div>
+    <div class="stat-sub"   id="stat-month-days">0 días</div>
+  </div>
+  <div class="stat-divider"></div>
+  <div class="stat">
+    <div class="stat-label">Total acumulado</div>
+    <div class="stat-value" id="stat-total">$0</div>
+    <div class="stat-sub"   id="stat-total-days">0 días</div>
+  </div>
+  <div class="stat-divider"></div>
+  <div class="stat">
+    <div class="stat-label">Promedio/día</div>
+    <div class="stat-value" id="stat-avg">—</div>
+    <div class="stat-sub">todos</div>
+  </div>
+</div>
+
+<!-- Legend -->
+<div id="legend">
+  <div class="legend-item"><div class="legend-swatch ls-morning"></div>Mañana</div>
+  <div class="legend-item"><div class="legend-swatch ls-afternoon"></div>Tarde</div>
+  <div class="legend-item"><div class="legend-swatch ls-tip"></div>Propina cargada</div>
+</div>
+
+<!-- ══ TAB: PROPINAS ══ -->
+<div id="tab-tips" class="tab-content active">
+  <div id="tab-tips-inner">
+    <div id="cal-nav">
+      <button class="nav-btn" onclick="changeMonth(-1)">‹</button>
+      <div>
+        <div class="month-label" id="month-label"></div>
+        <div class="year-label"  id="year-label"></div>
+      </div>
+      <button class="nav-btn" onclick="changeMonth(1)">›</button>
+    </div>
+    <div class="day-headers-row">
+      <div class="day-header">Lun</div><div class="day-header">Mar</div><div class="day-header">Mié</div>
+      <div class="day-header">Jue</div><div class="day-header">Vie</div><div class="day-header">Sáb</div><div class="day-header">Dom</div>
+    </div>
+    <div id="cal-grid"></div>
+    <div id="detail"></div>
+  </div>
+</div>
+
+<!-- ══ TAB: HORARIO ══ -->
+<div id="tab-schedule" class="tab-content">
+  <div id="tab-schedule-inner">
+
+    <!-- PDF -->
+    <div class="tab-title">Horario original (PDF)</div>
+    <div id="upload-area" class="upload-area" onclick="document.getElementById('pdf-input').click()">
+      <div class="upload-icon">📋</div>
+      <div class="upload-text">Subir horario (PDF)</div>
+      <div class="upload-sub">Tocá para seleccionar el archivo</div>
+    </div>
+    <input type="file" id="pdf-input" accept="application/pdf,.pdf" onchange="handlePDFUpload(event)" />
+    <div id="pdf-section" style="display:none;">
+      <div class="pdf-bar">
+        <span class="pdf-name" id="pdf-name-label"></span>
+        <button class="pdf-action-btn" onclick="document.getElementById('pdf-input').click()">Cambiar</button>
+        <button class="pdf-action-btn danger" onclick="deletePDF()">Eliminar</button>
+      </div>
+      <div id="pdf-loading">Cargando PDF…</div>
+      <div id="pdf-pages"></div>
+    </div>
+
+    <!-- Schedule mark calendar -->
+    <div class="sched-section">
+      <div class="sched-title">Mis turnos</div>
+
+      <!-- Cycle hint -->
+      <div class="sched-cycle-hint">
+        <div class="cycle-step"><div class="dot dot-x"></div>Libre</div>
+        <span class="cycle-arrow">›</span>
+        <div class="cycle-step"><div class="dot dot-m"></div>Mañana</div>
+        <span class="cycle-arrow">›</span>
+        <div class="cycle-step"><div class="dot dot-t"></div>Tarde</div>
+      </div>
+
+      <div id="sched-nav" style="margin-top:12px;">
+        <button class="nav-btn" onclick="changeSchedMonth(-1)">‹</button>
+        <div>
+          <div class="month-label" id="sched-month-label"></div>
+          <div class="year-label"  id="sched-year-label"></div>
+        </div>
+        <button class="nav-btn" onclick="changeSchedMonth(1)">›</button>
+      </div>
+
+      <div class="day-headers-row" style="margin-top:10px;">
+        <div class="day-header">Lun</div><div class="day-header">Mar</div><div class="day-header">Mié</div>
+        <div class="day-header">Jue</div><div class="day-header">Vie</div><div class="day-header">Sáb</div><div class="day-header">Dom</div>
+      </div>
+      <div id="sched-grid"></div>
+      <p class="sched-hint">Cada toque cambia el estado del día.</p>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ TAB: AJUSTES ══ -->
+<div id="tab-settings" class="tab-content">
+  <div id="tab-settings-inner">
+
+    <div class="settings-section">
+      <div class="settings-title">Mi perfil</div>
+      <div class="settings-sep"></div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">Mi nombre</div>
+          <div class="settings-sublabel">Se muestra en el encabezado</div>
+        </div>
+        <input class="settings-input settings-input-wide" type="text" id="settings-name" placeholder="Tu nombre" />
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-title">División de propinas</div>
+      <div class="settings-sep"></div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">Personas en el turno</div>
+          <div class="settings-sublabel">Total ÷ esta cantidad = tu parte</div>
+        </div>
+        <input class="settings-input" type="number" id="settings-split" min="1" max="20" placeholder="3" />
+      </div>
+      <div style="padding:10px 0 0;font-size:11px;color:#5a4a30;line-height:1.5;">
+        Ej: si el total es $9.000 y son 3 personas → $3.000 para vos.
+      </div>
+    </div>
+
+    <button class="settings-save-btn" id="settings-save-btn" onclick="saveSettingsForm()">Guardar cambios</button>
+
+    <div class="settings-section" style="margin-top:28px;">
+      <div class="settings-title">Datos</div>
+      <div class="settings-sep"></div>
+      <div class="settings-row">
+        <div><div class="settings-label">Exportar respaldo</div><div class="settings-sublabel">Propinas + horario → JSON</div></div>
+        <button class="btn-data" onclick="exportData()">JSON</button>
+      </div>
+      <div class="settings-row">
+        <div><div class="settings-label">Exportar como texto</div><div class="settings-sublabel">Resumen legible → TXT</div></div>
+        <button class="btn-data" onclick="exportTXT()">TXT</button>
+      </div>
+      <div class="settings-row">
+        <div><div class="settings-label">Exportar para Word</div><div class="settings-sublabel">Tabla formateada → DOC</div></div>
+        <button class="btn-data" onclick="exportDOC()">DOC</button>
+      </div>
+      <div class="settings-row">
+        <div><div class="settings-label">Importar</div><div class="settings-sublabel">Restaurar desde JSON</div></div>
+        <button class="btn-data" onclick="document.getElementById('import-input').click()">Importar</button>
+      </div>
+      <input type="file" id="import-input" accept=".json,application/json" onchange="importData(event)" style="display:none;" />
+    </div>
+
+    <div class="settings-version">v2.1.0 · Propinas ☕ · PWA</div>
+  </div>
+</div>
+
+<!-- FAB -->
+<button id="fab" onclick="addToday()">+</button>
+
+<!-- Bottom nav -->
+<nav id="bottom-nav">
+  <button class="nav-tab active" id="nav-tips"     onclick="showTab('tips')">
+    <span class="nav-tab-icon">📅</span><span>Propinas</span>
+  </button>
+  <button class="nav-tab"        id="nav-schedule" onclick="showTab('schedule')">
+    <span class="nav-tab-icon">📋</span><span>Horario</span>
+  </button>
+  <button class="nav-tab"        id="nav-settings" onclick="showTab('settings')">
+    <span class="nav-tab-icon">⚙️</span><span>Ajustes</span>
+  </button>
+</nav>
+
+<!-- Modal: form -->
+<div id="form-overlay" class="overlay bottom" onclick="bgClick(event,'form-overlay')">
+  <div class="sheet">
+    <div class="form-sublabel">Registrar propina</div>
+    <div class="form-date" id="form-date-label"></div>
+    <label class="form-label">Total del turno (CLP) *</label>
+    <input class="form-input" type="number" id="input-total" placeholder="ej: 6300" oninput="updatePreview()" />
+    <label class="form-label" id="split-label">División</label>
+    <div class="split-btns" id="split-btns-wrap">
+      <button class="split-btn active" id="btn-split-yes" onclick="setSplit(true)"></button>
+      <button class="split-btn"        id="btn-split-no"  onclick="setSplit(false)">Sólo mío</button>
+    </div>
+    <div class="preview-box" id="preview-box">
+      <span class="preview-label">TU PARTE</span>
+      <span class="preview-amount" id="preview-amount"></span>
+    </div>
+    <label class="form-label">Nota (opcional)</label>
+    <input class="form-input" type="text" id="input-note" placeholder="ej: turno corto, fin de semana..." />
+    <div class="btn-row">
+      <button class="btn-delete" id="btn-delete" onclick="deleteTip()">Eliminar</button>
+      <button class="btn-cancel" onclick="closeForm()">Cancelar</button>
+      <button class="btn-save"   id="btn-save"   onclick="saveTip()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: confirm -->
+<div id="confirm-overlay" class="overlay middle" onclick="bgClick(event,'confirm-overlay')">
+  <div class="dialog">
+    <div class="confirm-tag">Ya tiene propina</div>
+    <div class="confirm-date"   id="confirm-date"></div>
+    <div class="confirm-amount" id="confirm-amount"></div>
+    <div class="confirm-q">¿Querés editar esta propina?</div>
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="closeConfirm()">Cancelar</button>
+      <button class="btn-edit"   onclick="openEdit()">Editar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════
+   CONSTANTS
+════════════════════════════════ */
+const MONTHS   = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
+                  "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+const AUTO_NOTES = new Set(['x3','sólo mío']);
+const isAutoNote = n => !n || AUTO_NOTES.has(n) || /^÷\d+$/.test(n);
+
+/* ════════════════════════════════
+   SETTINGS
+════════════════════════════════ */
+let settings = { splitCount: 3, workerName: '' };
+function loadSettings() {
+  try { const r = localStorage.getItem('propinas-settings'); if (r) settings = {...settings,...JSON.parse(r)}; } catch {}
+  document.getElementById('settings-name').value  = settings.workerName || '';
+  document.getElementById('settings-split').value = settings.splitCount;
+  applySettings();
+}
+function applySettings() {
+  document.getElementById('header-byline').textContent =
+    settings.workerName ? 'Café · ' + settings.workerName : 'Café';
+  const n = settings.splitCount;
+  document.getElementById('btn-split-yes').textContent = n > 1 ? `÷${n} (somos ${n})` : 'Por partes iguales';
+  const wrap = document.getElementById('split-btns-wrap');
+  const lbl  = document.getElementById('split-label');
+  if (n === 1) { wrap.style.display='none'; lbl.style.display='none'; setSplit(false); }
+  else         { wrap.style.display='flex'; lbl.style.display='block'; }
+}
+function saveSettingsForm() {
+  settings.workerName = document.getElementById('settings-name').value.trim();
+  settings.splitCount = Math.max(1, Math.min(20, parseInt(document.getElementById('settings-split').value)||3));
+  localStorage.setItem('propinas-settings', JSON.stringify(settings));
+  applySettings();
+  const btn = document.getElementById('settings-save-btn');
+  btn.textContent = '✓ Guardado';
+  setTimeout(() => { btn.textContent = 'Guardar cambios'; }, 1800);
+}
+
+/* ════════════════════════════════
+   TIPS DATA
+════════════════════════════════ */
+const today = new Date();
+let viewYear=today.getFullYear(), viewMonth=today.getMonth();
+let selectedDate=null, splitMode=true;
+let tips=[], tipMap={};
+function loadTips()  { try { const r=localStorage.getItem('propinas-cafe-v2'); if(r) return JSON.parse(r); } catch {} return []; }
+function saveTips()  { try { localStorage.setItem('propinas-cafe-v2', JSON.stringify(tips)); } catch {} }
+function buildMap()  { tipMap={}; tips.forEach(t=>{tipMap[t.date]=t;}); }
+
+/* ════════════════════════════════
+   SHIFT DATA  (Map<date, 'mañana'|'tarde'>)
+════════════════════════════════ */
+let shiftMap = new Map();
+let schedYear=today.getFullYear(), schedMonth=today.getMonth();
+
+function loadShifts() {
+  try {
+    const r = localStorage.getItem('propinas-shifts-v1');
+    if (r) { shiftMap = new Map(Object.entries(JSON.parse(r))); return; }
+    // migrate old boolean schedule
+    const old = localStorage.getItem('propinas-schedule');
+    if (old) { JSON.parse(old).forEach(d => shiftMap.set(d,'mañana')); }
+  } catch {}
+}
+function saveShifts() {
+  try { localStorage.setItem('propinas-shifts-v1', JSON.stringify(Object.fromEntries(shiftMap))); } catch {}
+}
+
+/* ════════════════════════════════
+   HELPERS
+════════════════════════════════ */
+const fmt      = n  => '$' + Math.round(n).toLocaleString('es-CL');
+const dateStr  = (y,m,d) => `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+const daysIn   = (y,m) => new Date(y,m+1,0).getDate();
+const firstDay = (y,m) => { const d=new Date(y,m,1).getDay(); return d===0?6:d-1; };
+const fmtDate  = ds => new Date(ds+'T12:00:00').toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long'});
+const fmtShort = ds => new Date(ds+'T12:00:00').toLocaleDateString('es-CL',{weekday:'short',day:'numeric'});
+function computedShare(val) {
+  const t=parseInt(val); if(isNaN(t)||t<=0) return null;
+  return splitMode ? Math.round(t/settings.splitCount) : t;
+}
+
+/* ════════════════════════════════
+   TAB NAVIGATION
+════════════════════════════════ */
+function showTab(tab) {
+  document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(el=>el.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  document.getElementById('nav-'+tab).classList.add('active');
+  document.getElementById('fab').classList.toggle('hidden', tab!=='tips');
+  if (tab==='schedule') { schedYear=viewYear; schedMonth=viewMonth; renderSchedCalendar(); loadPDFPreview(); }
+}
+
+/* ════════════════════════════════
+   MAIN CALENDAR
+════════════════════════════════ */
+function changeMonth(dir) {
+  viewMonth+=dir;
+  if(viewMonth<0){viewMonth=11;viewYear--;} if(viewMonth>11){viewMonth=0;viewYear++;}
+  render();
+}
+function render() {
+  document.getElementById('month-label').textContent = MONTHS[viewMonth];
+  document.getElementById('year-label').textContent  = viewYear;
+
+  const ms=`${viewYear}-${String(viewMonth+1).padStart(2,'0')}`;
+  const mt=tips.filter(t=>t.date.startsWith(ms));
+  const mTotal=mt.reduce((s,t)=>s+t.myShare,0), aTotal=tips.reduce((s,t)=>s+t.myShare,0);
+  document.getElementById('stat-month').textContent      = fmt(mTotal);
+  document.getElementById('stat-month-days').textContent = mt.length+' días';
+  document.getElementById('stat-total').textContent      = fmt(aTotal);
+  document.getElementById('stat-total-days').textContent = tips.length+' días';
+  document.getElementById('stat-avg').textContent        = tips.length ? fmt(Math.round(aTotal/tips.length)) : '—';
+
+  const grid=document.getElementById('cal-grid'); grid.innerHTML='';
+  const todayStr=dateStr(today.getFullYear(),today.getMonth(),today.getDate());
+
+  for(let i=0;i<firstDay(viewYear,viewMonth);i++) grid.appendChild(document.createElement('div'));
+
+  for(let d=1;d<=daysIn(viewYear,viewMonth);d++) {
+    const ds=dateStr(viewYear,viewMonth,d);
+    const tip=tipMap[ds], shift=shiftMap.get(ds), isToday=ds===todayStr;
+
+    const cell=document.createElement('div');
+    let cls='cal-cell';
+    if(tip)                  cls+=' has-tip';
+    else if(shift==='mañana')cls+=' has-morning';
+    else if(shift==='tarde') cls+=' has-afternoon';
+    if(isToday) cls+=' is-today';
+    cell.className=cls;
+
+    const num=document.createElement('span');
+    num.className='day-num'+(isToday?' today':tip?' hastip':shift==='mañana'?' ismorning':shift==='tarde'?' isafternoon':'');
+    num.textContent=d; cell.appendChild(num);
+
+    if(tip) {
+      const amt=document.createElement('span');
+      amt.className='tip-amt'; amt.textContent=fmt(tip.myShare); cell.appendChild(amt);
+      const bar=document.createElement('div'); bar.className='tip-bar'; cell.appendChild(bar);
+      // show shift type on tip cell
+      if(shift) {
+        const tag=document.createElement('span');
+        tag.className='tip-shift-tag '+(shift==='mañana'?'m':'t');
+        tag.textContent=shift==='mañana'?'M':'T'; cell.appendChild(tag);
+      }
+    } else if(shift) {
+      const bar=document.createElement('div');
+      bar.className=shift==='mañana'?'morning-bar':'afternoon-bar';
+      cell.appendChild(bar);
+    }
+
+    cell.addEventListener('click',()=>selectDay(ds));
+    grid.appendChild(cell);
+  }
+
+  // Detail
+  const detail=document.getElementById('detail');
+  if(!mt.length){detail.innerHTML='';return;}
+  const sorted=[...mt].sort((a,b)=>a.date.localeCompare(b.date));
+  let html='<div class="detail-title">Detalle del mes</div>';
+  sorted.forEach(t=>{
+    const s=shiftMap.get(t.date);
+    const pill=s?`<span class="shift-pill ${s==='mañana'?'m':'t'}">${s==='mañana'?'Mañana':'Tarde'}</span>`:'';
+    html+=`<div class="detail-row">
+      <div>
+        <span class="detail-date">${fmtShort(t.date)}</span>${pill}
+        ${!isAutoNote(t.note)?`<span class="detail-note">${t.note}</span>`:''}
+      </div>
+      <div>
+        <div class="detail-amount">${fmt(t.myShare)}</div>
+        ${t.total?`<div class="detail-sub">total turno: ${fmt(t.total)}</div>`:''}
+      </div>
+    </div>`;
+  });
+  html+=`<div class="detail-footer"><span class="lbl">TOTAL MES</span><span class="val">${fmt(mTotal)}</span></div>`;
+  detail.innerHTML=html;
+}
+
+/* ════════════════════════════════
+   TIP CRUD
+════════════════════════════════ */
+function selectDay(ds) {
+  selectedDate=ds; const tip=tipMap[ds];
+  if(tip) {
+    document.getElementById('confirm-date').textContent  =fmtDate(ds);
+    document.getElementById('confirm-amount').textContent=fmt(tip.myShare);
+    document.getElementById('confirm-overlay').classList.add('show');
+  } else openForm(false);
+}
+function openForm(isEdit) {
+  applySettings();
+  document.getElementById('form-date-label').textContent=fmtDate(selectedDate);
+  const tip=tipMap[selectedDate];
+  if(isEdit&&tip) {
+    document.getElementById('input-total').value=tip.total||'';
+    document.getElementById('input-note').value=isAutoNote(tip.note)?'':(tip.note||'');
+    setSplit(tip.splitMode!==false&&tip.note!=='sólo mío');
+    document.getElementById('btn-delete').classList.add('show');
+  } else {
+    document.getElementById('input-total').value='';
+    document.getElementById('input-note').value='';
+    setSplit(settings.splitCount>1);
+    document.getElementById('btn-delete').classList.remove('show');
+  }
+  updatePreview();
+  document.getElementById('form-overlay').classList.add('show');
+}
+function openEdit()    { closeConfirm(); openForm(true); }
+function closeForm()   { document.getElementById('form-overlay').classList.remove('show'); }
+function closeConfirm(){ document.getElementById('confirm-overlay').classList.remove('show'); }
+function addToday() {
+  selectedDate=dateStr(today.getFullYear(),today.getMonth(),today.getDate());
+  viewYear=today.getFullYear(); viewMonth=today.getMonth(); render(); selectDay(selectedDate);
+}
+function setSplit(val) {
+  splitMode=val;
+  document.getElementById('btn-split-yes').className='split-btn'+(val?' active':'');
+  document.getElementById('btn-split-no').className='split-btn'+(!val?' active':'');
+  updatePreview();
+}
+function updatePreview() {
+  const share=computedShare(document.getElementById('input-total').value);
+  const box=document.getElementById('preview-box'), btn=document.getElementById('btn-save');
+  if(share){document.getElementById('preview-amount').textContent=fmt(share);box.classList.add('show');btn.classList.add('ready');}
+  else{box.classList.remove('show');btn.classList.remove('ready');}
+}
+function saveTip() {
+  const total=parseInt(document.getElementById('input-total').value);
+  if(isNaN(total)||total<=0) return;
+  const myShare=computedShare(total);
+  const noteInput=document.getElementById('input-note').value.trim();
+  const note=noteInput||(splitMode?`÷${settings.splitCount}`:'sólo mío');
+  tips=tips.filter(t=>t.date!==selectedDate);
+  tips.push({date:selectedDate,total,myShare,note,splitMode,splitCount:settings.splitCount});
+  tips.sort((a,b)=>a.date.localeCompare(b.date));
+  buildMap(); saveTips(); closeForm(); render();
+}
+function deleteTip() {
+  tips=tips.filter(t=>t.date!==selectedDate); buildMap(); saveTips(); closeForm(); render();
+}
+function bgClick(e,id) { if(e.target===document.getElementById(id)) document.getElementById(id).classList.remove('show'); }
+
+/* ════════════════════════════════
+   SCHEDULE MARK CALENDAR
+   Cycle: undefined → 'mañana' → 'tarde' → undefined
+════════════════════════════════ */
+function changeSchedMonth(dir) {
+  schedMonth+=dir;
+  if(schedMonth<0){schedMonth=11;schedYear--;} if(schedMonth>11){schedMonth=0;schedYear++;}
+  renderSchedCalendar();
+}
+function renderSchedCalendar() {
+  document.getElementById('sched-month-label').textContent=MONTHS[schedMonth];
+  document.getElementById('sched-year-label').textContent=schedYear;
+  const grid=document.getElementById('sched-grid'); grid.innerHTML='';
+  const todayStr=dateStr(today.getFullYear(),today.getMonth(),today.getDate());
+  for(let i=0;i<firstDay(schedYear,schedMonth);i++) grid.appendChild(document.createElement('div'));
+  for(let d=1;d<=daysIn(schedYear,schedMonth);d++) {
+    const ds=dateStr(schedYear,schedMonth,d);
+    const shift=shiftMap.get(ds), isToday=ds===todayStr;
+    const cell=document.createElement('div');
+    cell.className='sched-cell'+(shift===' mañana'?' morning':shift==='tarde'?' afternoon':'')+(isToday?' is-today':'');
+    // fix space above
+    cell.className='sched-cell'+(shift==='mañana'?' morning':shift==='tarde'?' afternoon':'')+(isToday?' is-today':'');
+
+    const num=document.createElement('span');
+    num.className='sched-num'+(shift==='mañana'?' morning':shift==='tarde'?' afternoon':isToday?' today':'');
+    num.textContent=d; cell.appendChild(num);
+
+    if(shift) {
+      const lbl=document.createElement('span');
+      lbl.className='sched-label '+(shift==='mañana'?'morning':'afternoon');
+      lbl.textContent=shift==='mañana'?'M':'T'; cell.appendChild(lbl);
+    }
+
+    cell.addEventListener('click',()=>{
+      const cur=shiftMap.get(ds);
+      if(!cur)            shiftMap.set(ds,'mañana');
+      else if(cur==='mañana') shiftMap.set(ds,'tarde');
+      else                shiftMap.delete(ds);
+      saveShifts(); renderSchedCalendar(); render();
+    });
+    grid.appendChild(cell);
+  }
+}
+
+/* ════════════════════════════════
+   DATA EXPORT / IMPORT
+════════════════════════════════ */
+function exportData() {
+  const data={tips,settings,shifts:Object.fromEntries(shiftMap),exportedAt:new Date().toISOString()};
+  const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
+  const a=Object.assign(document.createElement('a'),{href:url,download:`propinas-backup-${new Date().toISOString().slice(0,10)}.json`});
+  a.click(); URL.revokeObjectURL(url);
+}
+function importData(event) {
+  const file=event.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try {
+      const data=JSON.parse(e.target.result);
+      if(!data.tips||!Array.isArray(data.tips)){alert('Archivo no válido.');return;}
+      tips=data.tips; buildMap(); saveTips();
+      if(data.shifts){shiftMap=new Map(Object.entries(data.shifts));saveShifts();}
+      if(data.settings){settings={...settings,...data.settings};localStorage.setItem('propinas-settings',JSON.stringify(settings));document.getElementById('settings-name').value=settings.workerName||'';document.getElementById('settings-split').value=settings.splitCount;applySettings();}
+      render(); alert('Datos importados correctamente.');
+    } catch {alert('Error al leer el archivo.');}
+  };
+  reader.readAsText(file); event.target.value='';
+}
+
+/* ════════════════════════════════
+   INDEXEDDB
+════════════════════════════════ */
+function openIDB(){return new Promise((res,rej)=>{const req=indexedDB.open('propinas-files',1);req.onupgradeneeded=e=>e.target.result.createObjectStore('store');req.onsuccess=e=>res(e.target.result);req.onerror=rej;});}
+async function idbGet(k){const db=await openIDB();return new Promise((res,rej)=>{const req=db.transaction('store').objectStore('store').get(k);req.onsuccess=e=>res(e.target.result);req.onerror=rej;});}
+async function idbSet(k,v){const db=await openIDB();return new Promise((res,rej)=>{const tx=db.transaction('store','readwrite');tx.objectStore('store').put(v,k);tx.oncomplete=res;tx.onerror=rej;});}
+async function idbDel(k){const db=await openIDB();return new Promise((res,rej)=>{const tx=db.transaction('store','readwrite');tx.objectStore('store').delete(k);tx.oncomplete=res;tx.onerror=rej;});}
+
+/* ════════════════════════════════
+   PDF.js
+════════════════════════════════ */
+const PDFJS_URL='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+const PDFJS_WRK='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+let pdfJsReady=false;
+function loadPdfJs(){if(pdfJsReady)return Promise.resolve();return new Promise((res,rej)=>{const s=document.createElement('script');s.src=PDFJS_URL;s.onload=()=>{window.pdfjsLib.GlobalWorkerOptions.workerSrc=PDFJS_WRK;pdfJsReady=true;res();};s.onerror=rej;document.head.appendChild(s);});}
+async function renderPDFBuffer(buf){
+  await loadPdfJs();
+  const pages=document.getElementById('pdf-pages'), load=document.getElementById('pdf-loading');
+  pages.innerHTML=''; load.style.display='block';
+  try{
+    const doc=await pdfjsLib.getDocument({data:buf}).promise; load.style.display='none';
+    const mw=(document.getElementById('pdf-pages').parentElement.clientWidth-32)||320;
+    for(let i=1;i<=doc.numPages;i++){
+      const page=await doc.getPage(i);
+      const vp=page.getViewport({scale:mw/page.getViewport({scale:1}).width});
+      const cv=document.createElement('canvas'); cv.width=vp.width; cv.height=vp.height;
+      cv.style.cssText='width:100%;display:block;margin-bottom:4px;';
+      pages.appendChild(cv); await page.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
+    }
+  }catch{load.textContent='No se pudo renderizar el PDF.';}
+}
+async function handlePDFUpload(event){const f=event.target.files[0];if(!f)return;await idbSet('schedule-pdf',{buffer:await f.arrayBuffer(),name:f.name});event.target.value='';loadPDFPreview();}
+async function deletePDF(){await idbDel('schedule-pdf');document.getElementById('pdf-section').style.display='none';document.getElementById('upload-area').style.display='block';document.getElementById('pdf-pages').innerHTML='';}
+async function loadPDFPreview(){
+  const data=await idbGet('schedule-pdf');
+  if(!data){document.getElementById('pdf-section').style.display='none';document.getElementById('upload-area').style.display='block';return;}
+  document.getElementById('upload-area').style.display='none';
+  document.getElementById('pdf-section').style.display='block';
+  document.getElementById('pdf-name-label').textContent=data.name||'Horario.pdf';
+  renderPDFBuffer(data.buffer);
+}
+
+/* ════════════════════════════════
+   EXPORT TXT
+════════════════════════════════ */
+function exportTXT() {
+  if (!tips.length) { alert('No hay propinas registradas.'); return; }
+  const worker = settings.workerName || 'Trabajador';
+  const now    = new Date().toLocaleDateString('es-CL');
+  const SEP    = '════════════════════════════════';
+  const sep2   = '────────────────────────────────';
+  const lines  = [SEP, `  PROPINAS · CAFÉ`, `  ${worker}`, `  Exportado: ${now}`, SEP, ''];
+
+  const byMonth = {};
+  tips.forEach(t => {
+    const k = t.date.slice(0,7);
+    if (!byMonth[k]) byMonth[k] = [];
+    byMonth[k].push(t);
+  });
+
+  Object.keys(byMonth).sort().forEach(key => {
+    const [y, m] = key.split('-');
+    const mt = byMonth[key].sort((a,b) => a.date.localeCompare(b.date));
+    const total = mt.reduce((s,t) => s+t.myShare, 0);
+    lines.push(`  ${MONTHS[parseInt(m)-1].toUpperCase()} ${y}`);
+    lines.push('  ' + sep2);
+    mt.forEach(t => {
+      const shift   = shiftMap.get(t.date);
+      const shiftLbl= shift === 'mañana' ? 'Mañana' : shift === 'tarde' ? 'Tarde ' : '      ';
+      const dateLbl  = fmtShort(t.date).padEnd(12);
+      const note     = !isAutoNote(t.note) ? `  (${t.note})` : '';
+      lines.push(`  ${dateLbl}  ${shiftLbl}  ${fmt(t.myShare)}${note}`);
+    });
+    lines.push('  ' + sep2);
+    lines.push(`  TOTAL: ${fmt(total)}  ·  ${mt.length} día${mt.length>1?'s':''}`);
+    lines.push('');
+  });
+
+  const allTotal = tips.reduce((s,t) => s+t.myShare, 0);
+  lines.push(SEP);
+  lines.push(`  TOTAL ACUMULADO : ${fmt(allTotal)}`);
+  lines.push(`  DÍAS TRABAJADOS : ${tips.length}`);
+  if (tips.length) lines.push(`  PROMEDIO / DÍA  : ${fmt(Math.round(allTotal/tips.length))}`);
+  lines.push(SEP);
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  Object.assign(document.createElement('a'), { href: url, download: `propinas-${new Date().toISOString().slice(0,10)}.txt` }).click();
+  URL.revokeObjectURL(url);
+}
+
+/* ════════════════════════════════
+   EXPORT DOC (HTML-as-Word)
+════════════════════════════════ */
+function exportDOC() {
+  if (!tips.length) { alert('No hay propinas registradas.'); return; }
+  const worker = settings.workerName || 'Trabajador';
+  const now    = new Date().toLocaleDateString('es-CL');
+
+  const byMonth = {};
+  tips.forEach(t => { const k=t.date.slice(0,7); if(!byMonth[k]) byMonth[k]=[]; byMonth[k].push(t); });
+
+  let tbody = '';
+  Object.keys(byMonth).sort().forEach(key => {
+    const [y, m] = key.split('-');
+    const mt    = byMonth[key].sort((a,b) => a.date.localeCompare(b.date));
+    const total = mt.reduce((s,t) => s+t.myShare, 0);
+
+    tbody += `<tr><td colspan="4" style="background:#2d1f0a;color:#f5d78e;font-weight:bold;
+      padding:10px 12px;font-size:13pt;border-top:3px solid #c8922a;">
+      ${MONTHS[parseInt(m)-1]} ${y}</td></tr>`;
+
+    mt.forEach(t => {
+      const shift = shiftMap.get(t.date);
+      const shiftTxt   = shift==='mañana'?'Mañana':shift==='tarde'?'Tarde':'—';
+      const shiftColor = shift==='mañana'?'#2a7a20':shift==='tarde'?'#a05030':'#aaa';
+      const note = !isAutoNote(t.note) ? t.note : '';
+      tbody += `<tr>
+        <td style="padding:7px 12px;">${fmtDate(t.date)}</td>
+        <td style="padding:7px 12px;color:${shiftColor};font-weight:bold;">${shiftTxt}</td>
+        <td style="padding:7px 12px;color:#888;font-size:9pt;">${note}</td>
+        <td style="padding:7px 12px;text-align:right;font-weight:bold;color:#1a5a10;">${fmt(t.myShare)}</td>
+      </tr>`;
+    });
+    tbody += `<tr style="border-top:1px solid #c8922a;">
+      <td colspan="3" style="padding:7px 12px;font-weight:bold;color:#c8922a;">Total ${MONTHS[parseInt(m)-1]}</td>
+      <td style="padding:7px 12px;text-align:right;font-weight:bold;color:#c8922a;">${fmt(total)}</td>
+    </tr><tr><td colspan="4" style="height:6px;"></td></tr>`;
+  });
+
+  const allTotal = tips.reduce((s,t) => s+t.myShare, 0);
+  const avg      = tips.length ? Math.round(allTotal/tips.length) : 0;
+
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office"
+    xmlns:w="urn:schemas-microsoft-com:office:word"
+    xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"><style>
+  body  { font-family: Calibri, Arial, sans-serif; font-size: 11pt; color: #222; margin: 48px; }
+  h1    { color: #c8922a; font-size: 22pt; margin-bottom: 2px; }
+  .sub  { color: #999; font-size: 10pt; margin-bottom: 32px; }
+  table { border-collapse: collapse; width: 100%; }
+  th    { background: #1a1208; color: #f5d78e; padding: 9px 12px; text-align: left; font-size: 10pt; }
+  td    { border-bottom: 1px solid #ececec; font-size: 10.5pt; }
+  .summ { margin-top: 28px; padding: 14px 18px; background: #fafafa; border: 1px solid #ddd; border-radius: 4px; }
+  .summ-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 11pt; }
+</style></head>
+<body>
+<h1>Propinas · Café</h1>
+<div class="sub">${worker} &nbsp;·&nbsp; Exportado el ${now}</div>
+<table>
+  <thead><tr>
+    <th>Fecha</th><th>Turno</th><th>Nota</th><th style="text-align:right;">Propina</th>
+  </tr></thead>
+  <tbody>${tbody}</tbody>
+</table>
+<div class="summ">
+  <div class="summ-row"><strong>Total acumulado</strong><strong style="color:#1a5a10;">${fmt(allTotal)}</strong></div>
+  <div class="summ-row"><span>Días trabajados</span><span><b>${tips.length}</b></span></div>
+  <div class="summ-row"><span>Promedio por día</span><span><b>${fmt(avg)}</b></span></div>
+</div>
+</body></html>`;
+
+  const blob = new Blob([html], { type: 'application/msword' });
+  const url  = URL.createObjectURL(blob);
+  Object.assign(document.createElement('a'), { href: url, download: `propinas-${new Date().toISOString().slice(0,10)}.doc` }).click();
+  URL.revokeObjectURL(url);
+}
+
+/* ════════════════════════════════
+   PWA INSTALL
+════════════════════════════════ */
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;if(!localStorage.getItem('pwa-dismissed'))document.getElementById('install-banner').classList.add('show');});
+function installApp(){if(!deferredPrompt)return;deferredPrompt.prompt();deferredPrompt.userChoice.then(()=>{deferredPrompt=null;dismissInstall();});}
+function dismissInstall(){document.getElementById('install-banner').classList.remove('show');localStorage.setItem('pwa-dismissed','1');}
+window.addEventListener('appinstalled',dismissInstall);
+if('serviceWorker'in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+
+/* ════════════════════════════════
+   INIT
+════════════════════════════════ */
+tips=loadTips(); buildMap(); loadShifts(); loadSettings(); render();
+</script>
+</body>
+</html>
