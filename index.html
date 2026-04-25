@@ -686,25 +686,35 @@ async function logout() {
    ══════════════════════════════════════════════════ */
 async function initApp() {
   showView('loading');
+
+  // Timeout de seguridad: si en 8s no resolvió, mostrar auth
+  const safetyTimer = setTimeout(() => showView('auth'), 8000);
+
   db.auth.onAuthStateChange(async (event, session) => {
+    clearTimeout(safetyTimer);
     currentUser = session?.user ?? null;
     if (!currentUser) { showView('auth'); return; }
-    await loadProfile();
+    try { await loadProfile(); }
+    catch(e) { console.error('loadProfile error:', e); showView('auth'); }
   });
+
+  // Supabase v2: getSession() asegura que el evento inicial dispare
+  const { data: { session } } = await db.auth.getSession();
+  if (!session) { clearTimeout(safetyTimer); showView('auth'); }
 }
 
 async function loadProfile() {
-  const { data } = await db.from('profiles').select('*').eq('id', currentUser.id).single();
+  const { data, error } = await db.from('profiles').select('*').eq('id', currentUser.id).single();
+  if (error) throw error;
   profile = data;
   if (!profile?.cafe_id) {
-    // Show onboarding
     const pendingRole = localStorage.getItem('pendingRole') || 'employee';
     document.getElementById('onboard-owner-form').style.display    = pendingRole==='owner'    ? '' : 'none';
     document.getElementById('onboard-employee-form').style.display = pendingRole==='employee' ? '' : 'none';
     showView('onboard'); return;
   }
-  // Load café
-  const { data: cafeData } = await db.from('cafes').select('*').eq('id', profile.cafe_id).single();
+  const { data: cafeData, error: cafeErr } = await db.from('cafes').select('*').eq('id', profile.cafe_id).single();
+  if (cafeErr) throw cafeErr;
   cafe = cafeData;
   splitCount = cafe?.split_count || 3;
   if (profile.role === 'owner') { await bootOwner(); }
