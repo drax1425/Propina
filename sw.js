@@ -1,4 +1,4 @@
-const CACHE = 'propinas-v2';
+const CACHE = 'propinas-v3';
 const ASSETS = [
   './index.html',
   './manifest.json',
